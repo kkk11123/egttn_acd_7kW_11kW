@@ -1,0 +1,4 @@
+_lib_debouncecheck.c:13:6:_LIB_DEBOUNCECHECK_init	0	static
+_lib_debouncecheck.c:22:6:_LIB_DEBOUNCECHECK_push	0	static
+_lib_debouncecheck.c:27:6:_LIB_DEBOUNCECHECK_shift	12	static
+_lib_debouncecheck.c:36:9:_LIB_DEBOUNCECHECK_compare	16	static

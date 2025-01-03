@@ -1,0 +1,4 @@
+_mw_eeprom.c:175:6:ee24_write.part.0	56	static
+_mw_eeprom.c:175:6:ee24_write	8	static
+_mw_eeprom.c:232:6:ee24_read	40	static
+_mw_eeprom.c:262:6:ee24_eraseChip	56	static

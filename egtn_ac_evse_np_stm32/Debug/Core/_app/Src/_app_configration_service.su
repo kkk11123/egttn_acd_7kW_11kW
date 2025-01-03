@@ -1,0 +1,10 @@
+_app_configration_service.c:19:9:_APP_CONFIGSERV_flag	16	static
+_app_configration_service.c:50:6:_APP_CONFIGSERV_startup	8	static
+_app_configration_service.c:78:6:_APP_CONFIGSERV_init	8	static
+_app_configration_service.c:93:9:config_state_changed_check	8	static
+_app_configration_service.c:142:6:_APP_CONFIGSERV_state_machine	8	static
+_app_configration_service.c:231:9:config_is_state_change	0	static
+_app_configration_service.c:244:6:_APP_CONFIGSERV_ctrl_loop	96	static
+_app_configration_service.c:468:6:_APP_CONFIGSERV_display_loop	8	static
+_app_configration_service.c:498:6:_APP_CONFIGSERV_main	8	static
+_app_configration_service.c:506:6:_APP_CONFIGSERV_process	8	static
