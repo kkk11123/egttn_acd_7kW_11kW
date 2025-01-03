@@ -1,0 +1,7 @@
+_mw_gpio.c:24:6:_MW_GPIO_init	8	static
+_mw_gpio.c:31:6:update_gpo	8	static
+_mw_gpio.c:42:6:update_gpi	16	static
+_mw_gpio.c:93:9:_MW_GPIO_set_gpo	8	static
+_mw_gpio.c:124:9:_MW_GPIO_get_gpo	0	static
+_mw_gpio.c:148:9:_MW_GPIO_get_gpi	0	static
+_mw_gpio.c:167:6:_MW_GPIO_update	8	static

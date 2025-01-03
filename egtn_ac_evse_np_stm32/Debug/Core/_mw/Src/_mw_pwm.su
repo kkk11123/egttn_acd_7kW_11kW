@@ -1,0 +1,2 @@
+_mw_pwm.c:15:6:_MW_PWM_init	8	static
+_mw_pwm.c:20:9:_MW_PWM_set_duty	56	static

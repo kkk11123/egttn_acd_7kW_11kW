@@ -1,0 +1,7 @@
+_lib_u8queue.c:12:6:_LIB_U8QUEUE_comFlush	0	static
+_lib_u8queue.c:19:10:_LIB_U8QUEUE_comLen	0	static
+_lib_u8queue.c:43:9:_LIB_U8QUEUE_get_byte	0	static
+_lib_u8queue.c:34:9:read_ringbuffer	8	static
+_lib_u8queue.c:48:10:_LIB_U8QUEUE_get_word	8	static
+_lib_u8queue.c:62:6:_LIB_U8QUEUE_inc_pointer	0	static
+_lib_u8queue.c:67:6:_LIB_U8QUEUE_push_ring	0	static

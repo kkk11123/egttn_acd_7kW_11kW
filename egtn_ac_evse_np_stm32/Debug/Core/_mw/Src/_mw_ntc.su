@@ -1,0 +1,5 @@
+_mw_ntc.c:210:5:_MW_NTC_cal_ntc	12	static
+_mw_ntc.c:236:9:_MW_NTC_store_value	8	static
+_mw_ntc.c:251:9:_MW_NTC_get_temp	0	static
+_mw_ntc.c:255:9:_MW_NTC_cal_temp	16	static
+_mw_ntc.c:281:9:_MW_NTC_loop	8	static

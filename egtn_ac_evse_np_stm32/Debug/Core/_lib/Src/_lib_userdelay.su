@@ -1,0 +1,7 @@
+_lib_userdelay.c:17:6:_LIB_USERDELAY_tickcount	0	static
+_lib_userdelay.c:22:10:_LIB_USERDLEAY_gettick	0	static
+_lib_userdelay.c:27:6:_LIB_USERDELAY_set	0	static
+_lib_userdelay.c:46:14:_LIB_USERDELAY_start	0	static
+_lib_userdelay.c:59:6:_LIB_USERDELAY_stop	0	static
+_lib_userdelay.c:64:15:CheckDelayValue	0	static
+_lib_userdelay.c:82:14:_LIB_USERDELAY_isfired	0	static

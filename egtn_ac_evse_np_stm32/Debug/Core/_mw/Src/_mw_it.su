@@ -1,0 +1,5 @@
+_mw_it.c:23:6:_MW_IT_init	8	static
+_mw_it.c:35:6:HAL_UART_RxCpltCallback	16	static
+_mw_it.c:50:6:HAL_TIM_PeriodElapsedCallback	8	static
+_mw_it.c:77:6:HAL_TIM_PWM_PulseFinishedCallback	8	static
+_mw_it.c:93:6:HAL_TIM_OC_DelayElapsedCallback	16	static

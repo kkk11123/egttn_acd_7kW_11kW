@@ -1,0 +1,4 @@
+_lib_bitop.c:13:9:_LIB_BITOP_ext_u16_to_u8one	0	static
+_lib_bitop.c:20:10:_LIB_BITOP_combi_u8two_to_u16	0	static
+_lib_bitop.c:31:7:_LIB_BITOP_bcd_to_short	12	static
+_lib_bitop.c:36:14:_LIB_BITOP_bcd_to_uint	12	static

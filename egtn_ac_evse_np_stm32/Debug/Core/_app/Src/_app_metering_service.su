@@ -1,0 +1,5 @@
+_app_metering_service.c:22:10:calc_delta_t_100us	0	static
+_app_metering_service.c:60:6:_APP_CHARGSERV_check_Irms_loop	40	static
+_app_metering_service.c:289:6:_APP_CHARGSERV_check_Vrms_loop	24	static
+_app_metering_service.c:345:6:_APP_METERING_startup	8	static
+_app_metering_service.c:358:6:_APP_METERING_process	8	static
