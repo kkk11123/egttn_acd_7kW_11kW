@@ -285,6 +285,32 @@ void _APP_CHARGSERV_check_Irms_loop()
  *
  */
 
+typedef struct {
+    double vrms_value;  // 계산된 VRMS 값
+    double compensation;  // 보상값
+} VLOOKUP;
+
+#define VLOOKUP_SIZE 5
+VLOOKUP vrms_lookup_table[VLOOKUP_SIZE] = {
+    {198.0, 1.15},   // For VRMS close to 198V
+    {220.0, 1.25},   // For VRMS close to 220V
+    {242.0, 1.35},   // For VRMS close to 242V
+    {260.0, 1.45},   // For VRMS close to 260V
+    {280.0, 1.55}    // For VRMS close to 280V
+};
+
+// look up 테이블로부터 보상값을 찾는 함수
+double get_compensation(double vrms) {
+    for (int i = 0; i < VLOOKUP_SIZE; i++) {
+        if (vrms <= vrms_lookup_table[i].vrms_value) {
+            return vrms_lookup_table[i].compensation;
+        }
+    }
+    // 기본 보상 값
+    return vrms_lookup_table[VLOOKUP_SIZE - 1].compensation;
+}
+
+
 #if 1
 void _APP_CHARGSERV_check_Vrms_loop()
 {
@@ -305,8 +331,13 @@ void _APP_CHARGSERV_check_Vrms_loop()
 	double vrms_adc_input_voltage = ((vrms_adc_value / 4096.0F) * (3.3F));
 #else
 	//double vrms_adc_input_voltage = (((vrms_adc_value / 4096.0F) * (3.3F)) + (1.25F));
-	double vrms_adc_input_voltage = (((vrms_adc_value / 4096.0F) * (3.3F)) + (1.28F));
+
+	//double vrms_adc_input_voltage = (((vrms_adc_value / 4096.0F) * (3.3F)) + (1.28F));
+	double vrms_adc_input_voltage = (vrms_adc_value / 4096.0F) * (3.3F);
+	double compensation = get_compensation(vrms_adc_input_voltage);
+	vrms_adc_input_voltage += compensation; //보상 해주기
 #endif
+
 
 	double vrms_voltage = ((vrms_adc_input_voltage * 10000000.0F) / 1091.0F);
 

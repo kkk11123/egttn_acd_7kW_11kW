@@ -1556,7 +1556,11 @@ void _APP_CHARGSERV_state_machine()
 
 #endif
 				_APP_RFID_set_start_tagging(0);
-			}
+				if (_OFF == _MW_GPIO_get_gpi(EMG)) {
+					charger_change_state(Charging, Fault);  // Fault 상태로 전환
+					Charger.reg.fault_set = 1;
+					_LIB_LOGGING_printf("#### CHARGSERV: Charging stopped due to EMG ####\r\n");
+				}
 			if(1 == Charger.reg.charging_ok)
 			{
 				charger_change_state(Charging, Finish);
