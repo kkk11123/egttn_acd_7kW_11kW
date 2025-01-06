@@ -1568,6 +1568,7 @@ void _APP_CHARGSERV_state_machine()
 				Charger.reg.finish_proceeding = 1;
 				Charger.reg.finish_stoptranscation_flag = 0;
 			}
+		}
 		break;
 
 		case Finish :
@@ -4751,6 +4752,7 @@ void _APP_CHARGSERV_fault_loop()
 	}
 	else
 	{
+		charger_emg_fault();
 		charger_over_voltage_fault();
 		charger_over_current_fault();
 		//charger_over_temperature_fault();
