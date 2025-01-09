@@ -285,48 +285,64 @@ void _APP_CHARGSERV_check_Irms_loop()
  *
  */
 
+/*
+ *
+ * PT+Peak Detecter (15.2K)
+ *
+ * 242VAC = 2.6V
+ * 220VAC = 2.36V
+ * 198VAC = 2.12V
+ * dvac = 0.01091
+ * dvac_100x = 0.0001091
+ * Peak_Vf = 0.65V
+ * adc_max_value = 2^12 = 4096
+ * Vadc_ref = 3.3V
+ *
+ * VRMS = ((input adc value / adc_max_value) * Vadc_ref) / dvac
+ *
+ * VRMS(+Peak Vf) = ((input adc value / adc_max_value) * Vadc_ref + Peak_Vf) / dvac
+ *
+ */
+
 typedef struct {
-    uint32_t vrms_value;  // 계산된 VRMS 값
+    uint32_t vrms_value;  // 계산된 VRMS 최대값
     uint32_t compensation;  // 보상값
 } VLOOKUP;
 
-#define VLOOKUP_SIZE 27
+#define VLOOKUP_SIZE 32
 VLOOKUP vrms_lookup_table[VLOOKUP_SIZE] = {
-    {22000, 100},
-	{22100, 200},
-	{22200, 300},
-	{22300, 400},
-	{22400, 500},
-    {22500, 600},
-	{22600, 700},
-	{22700, 800},
-	{22800, 1100},
-	{22900, 1100},
-    {23000, 1200},
-	{23100, 1500},
-	{23200, 1500},
-	{23300, 1700},
-	{23400, 1900},
-	{23500, 1900},
-	{23600, 2200},
-	{23700, 2200},
-	{23800, 2300},
-	{23900, 2300},
-    {24000, 2300},
-	{24100, 2400},
-	{24200, 2500},
-	{24300, 2600},
-	{24400, 2700},
-	{24500, 2800},
-	{24600, 2900},
-    {24700, 3000},
-	{24800, 3100},
-	{24900, 3200},
-    {25000, 3300},
-    {25500, 3500},
-    {26000, 3700},
-    {26500, 4000},
-    {27000, 4300},
+    {21430, -400},//실제 전압 210V
+	{21480, -300}, //실제 전압 211V
+	{21550, -250},//212V ~ 213V
+	{21650, -200},//214V ~ 216V
+	{21700, 0},//217V
+    {21800, 0},//218V
+	{21860, 100},//219V
+	{21950, 100}, //220V~221V
+	{22050, 250}, //222V ~ 223V
+	{22150, 350}, //224V ~ 225V
+    {22260, 450}, //226V ~ 227V
+	{22350, 550}, //228V ~ 229V
+	{22450, 650}, //230V ~ 231V
+	{22550, 750}, //232V ~ 233V
+	{22650, 850}, //234V ~ 235V
+	{22750, 950}, //236V ~ 237V
+	{22850, 1050}, //238V ~ 239V
+	{22950, 1250}, //240V ~ 242V
+	{23050, 1350}, //243V ~ 244V
+	{23150, 1500}, //245V ~ 246V
+    {23250, 1600}, //247V ~ 248V
+	{23300, 1650}, //249V ~ 250V
+	{23400, 1800}, //251V ~ 252V
+	{23450, 1900}, //253V
+	{23480, 1950}, //254V
+	{23500, 2000}, //255V
+	{23550, 2050}, //256V
+	{23600, 2200}, //257V ~ 258V
+	{23650, 2300}, //259V
+    {23700, 2250}, //260V
+	{23950, 2400}, //265V
+	{24050, 2800}, //270V
 };
 
 // look up 테이블로부터 보상값을 찾는 함수
@@ -340,13 +356,14 @@ uint32_t get_compensation(uint32_t vrms) {
     return vrms_lookup_table[VLOOKUP_SIZE - 1].compensation;
 }
 
-uint32_t get_vrms_value(uint32_t vrms) {
-    for (int i = 0; i < VLOOKUP_SIZE; i++) {
-        if (vrms <= vrms_lookup_table[i].vrms_value) {
-            return vrms_lookup_table[i].vrms_value;
-        }
-    }
-}
+//uint32_t get_vrms_value(uint32_t vrms) {
+//    for (int i = 0; i < VLOOKUP_SIZE; i++) {
+//        if (vrms <= vrms_lookup_table[i].vrms_value) {
+//            return vrms_lookup_table[i].vrms_value;
+//        }
+//    }
+//}
+
 #if 1
 void _APP_CHARGSERV_check_Vrms_loop() {
     uint16_t temp = gADCData[ADC_AC_V_INDEX_];
@@ -380,25 +397,26 @@ void _APP_CHARGSERV_check_Vrms_loop() {
 #if ((_VRMS_IRMS_CALC_LPF_FILTER_) == 0)
     Charger.current_V_rms = adc_temp_upper;
 #else
-    adc_temp_lpf = _LIB_LPF_calc(&Vrms_calc, adc_temp_upper);
-    uint32_t compensation = get_compensation(adc_temp_upper);
-    uint32_t vrms_value = get_vrms_value(adc_temp_upper);
-	adc_temp_lpf = (uint32_t)(adc_temp_lpf + compensation);
+    //adc_temp_lpf = _LIB_LPF_calc(&Vrms_calc, adc_temp_upper);
 
-    _APP_CHARGSERV_set_voltage_rms_V(adc_temp_lpf);
+    uint32_t compensation = get_compensation(adc_temp_upper);//vrms 최대값을 바탕으로 보상값 계산
+    //uint32_t vrms_value = get_vrms_value(adc_temp_upper);
+	adc_temp_upper += compensation;
+	//lpf를 거친 신호에 보상을 해줄 경우 lpf 값이 계속 달라져서 정확한 보상값을 찾기 힘듬
+
+    _APP_CHARGSERV_set_voltage_rms_V(adc_temp_upper);
 #endif
 
 #if 1
     dtemp++;
 
-    if (dtemp > 5000) {
+    if (dtemp > 1000) {
         dtemp = 0;
 
-//        printf("adc_temp_upper : %ld \r\n", adc_temp_upper);
-//        printf(" vrms_value : %ld \r\n",  vrms_value);
-//        printf("compensation : %ld \r\n", compensation);
-//        printf("adc_temp_lpf : %ld \r\n", _LIB_LPF_calc(&Vrms_calc, adc_temp_upper));
-        printf("VRMS : %ld \r\n", adc_temp_lpf);
+
+       // printf(" vrms_value : %ld \r\n",  vrms_value);
+        printf("compensation : %ld \r\n", compensation);
+        printf("VRMS : %ld \r\n", adc_temp_upper);
         printf("zct : %d \r\n", gADCData[ADC_ZCT_INDEX_]);
     }
 #endif

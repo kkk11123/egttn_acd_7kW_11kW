@@ -1556,11 +1556,7 @@ void _APP_CHARGSERV_state_machine()
 
 #endif
 				_APP_RFID_set_start_tagging(0);
-				if (_OFF == _MW_GPIO_get_gpi(EMG)) {
-					charger_change_state(Charging, Fault);  // Fault 상태로 전환
-					Charger.reg.fault_set = 1;
-					_LIB_LOGGING_printf("#### CHARGSERV: Charging stopped due to EMG ####\r\n");
-				}
+
 			if(1 == Charger.reg.charging_ok)
 			{
 				charger_change_state(Charging, Finish);
@@ -1677,7 +1673,8 @@ void charger_indiled_display()
 		break;
 
 		case Charging :
-			if((DC_6V == cp_state) || (PWM_6V == cp_state))
+			//if((DC_6V == cp_state) || (PWM_6V == cp_state))
+			if(PWM_6V == cp_state)
 			{
 				if(0)
 				{
@@ -1695,6 +1692,10 @@ void charger_indiled_display()
 					_MW_INDILED_sled_ctl(GREEN);
 				}
 
+			}
+			else if (DC_6V == cp_state)
+			{
+				_MW_INDILED_sled_ctl(RED);
 			}
 			else
 			{
@@ -1739,10 +1740,13 @@ void charger_indiled_display()
 				{
 					_MW_INDILED_sled_ctl(RED);
 					charger_fault_status_bak = charger_fault_status;
+					printf("charger_fault_status_bak : %u \r\n", charger_fault_status_bak);
+
 				}
 			}
 			else if((indiledtickcount == 3) || (indiledtickcount == 4))
 			{
+
 				if(_ON == charger_fault_status_bak.AC_OC_ERR)
 				{
 					_MW_INDILED_sled_ctl(YELLOW);
@@ -3586,6 +3590,7 @@ void charger_userconfigmode_handler()
 	}
 }
 
+#define EMG_INPUT_BIT 0
 void charger_autostartmode_handler()
 {
 	//230531 PES
@@ -3634,6 +3639,25 @@ void charger_autostartmode_handler()
 		button_pushed = 1;
 	}
 
+	if(charger_state == Charging || charger_state == Fault)
+	{
+		if(button_pushed == 1)
+		{
+			charger_fault_status.EMG_INPUT = _ON;
+			charger_fault_status.Raw |= (1 << EMG_INPUT_BIT);
+			_MW_INDILED_sled_ctl(RED);
+
+
+		}
+		else
+		{
+			charger_fault_status.EMG_INPUT = _OFF;
+			charger_fault_status.Raw &= ~(1 << EMG_INPUT_BIT);
+
+
+			//charger_emg_fault();
+		}
+	}
 
 	if(1 == button_pushed)
 	{
@@ -3965,12 +3989,13 @@ void charger_emg_fault()
 			}
 
 			charger_fault_status.EMG_INPUT = _ON;
-			charger_change_state(Charging,Fault);
+
 
 		}
 		else if((_ON == charger_fault_status.EMG_INPUT) && (_ON == _MW_GPIO_get_gpi(EMG)))
 		{
 			charger_fault_status.EMG_INPUT = _OFF;
+
 	#if ((__CHARGSERV_DEBUG__)==1)
 				_LIB_LOGGING_printf("#### CHARGSERV_FAULT_CLR : EMG_INPUT #### \r\n");
 	#endif
@@ -4740,7 +4765,7 @@ void _APP_CHARGSERV_get_charger_fault_status(eCharger_Fault *value)
 void _APP_CHARGSERV_fault_loop()
 {
 #if ((_CERTIFICATION_MODE_)==_CERTIFICATION_NON_)
-	if(0 == Charger.reg.dev_flag)
+	if(0 == Charger.reg.dev_flag)//수동 시작 모드
 	{
 		charger_emg_fault();
 		charger_wd_fault();
@@ -4750,7 +4775,7 @@ void _APP_CHARGSERV_fault_loop()
 		charger_cp_fault();
 		charger_leakage_fault();
 	}
-	else
+	else //자동 시작 모드
 	{
 		charger_emg_fault();
 		charger_over_voltage_fault();
