@@ -1748,7 +1748,6 @@ void charger_indiled_display()
 
 		case Fault :
 			
-			//_MW_INDILED_sled_ctl(RED);
 			if((indiledtickcount == 1) || (indiledtickcount == 2))
 			{
 				if((0 == charger_fault_status_bak.Raw) && (_ON != charger_fault_status.AC_LV_ERR))
@@ -1759,9 +1758,10 @@ void charger_indiled_display()
 
 				}
 				else if((0 == charger_fault_status_bak.Raw) && (_ON == charger_fault_status.AC_LV_ERR))
-				{
+				{// 저전압 에러 검출 시 초록 <-> 노랑 반복을 위해 저전압 오류 플래그를 조건문에 사용
 					_MW_INDILED_sled_ctl(GREEN);
 					charger_fault_status_bak = charger_fault_status;
+					//printf("green");
 					//printf("charger_fault_status_bak : %u \r\n", charger_fault_status_bak);
 				}
 			}
@@ -1839,7 +1839,7 @@ void charger_indiled_display()
 				else if(_ON == charger_fault_status_bak.AC_LV_ERR)
 				{
 					_MW_INDILED_sled_ctl(YELLOW);
-					charger_fault_status_bak.AC_UV_ERR = _OFF;
+					charger_fault_status_bak.AC_LV_ERR = _OFF;
 				}
 				else if(_ON == charger_fault_status_bak.CP_ERR)
 				{
@@ -3721,6 +3721,7 @@ void charger_autostartmode_handler()
 			}
 		}
 	}
+
 	else
 	{
 		_LIB_USERDELAY_stop(&gDelay_autostartmode_input);
@@ -4002,7 +4003,7 @@ void charger_emg_fault()
 {
 	eCharger_State charger_state = _APP_CHARGSERV_get_current_state();
 
-	if((AutoReady == charger_state) || (1 == Charger.automode_active))
+	if((AutoReady == charger_state) || (1 == Charger.automode_active)| (0 == Charger.automode_active))
 	{
 		charger_fault_status.EMG_INPUT = _OFF;
 		return;
@@ -4037,7 +4038,6 @@ void charger_emg_fault()
 
 void charger_wd_fault()
 {
-
 	if((_ON == _MW_CP_get_mc_relay_state()) && (_OFF == _MW_GPIO_get_gpi(WELD)))
 	{
 		if(_TRUE == _LIB_USERDELAY_start(&gTimeout_wd_fault, DELAY_RENEW_OFF))
@@ -4109,7 +4109,6 @@ void charger_wd_fault()
 }
 void charger_over_voltage_fault()
 {
-	//unsigned int fault_over_voltage = 24200;//CHARGSERV_MAXIMUM_AMPE * 1140;
 	unsigned int fault_over_voltage = 24800;
 
 	if(charger_fault_status.AC_OV_ERR == _OFF)
@@ -4838,7 +4837,7 @@ void _APP_CHARGSERV_fault_loop()
 #if ((_CERTIFICATION_MODE_)==_CERTIFICATION_NON_)
 	if(0 == Charger.reg.dev_flag)//수동 시작 모드
 	{
-		charger_emg_fault();
+		charger_emg_fault();//추가
 		charger_wd_fault();
 		charger_over_voltage_fault();
 		charger_under_voltage_fault();
@@ -4849,9 +4848,9 @@ void _APP_CHARGSERV_fault_loop()
 	}
 	else //자동 시작 모드
 	{
-		charger_emg_fault();
-		charger_over_voltage_fault();
-		charger_under_voltage_fault();
+		charger_emg_fault();//추가
+		charger_over_voltage_fault();//추가
+		charger_under_voltage_fault();//추가
 		charger_over_current_fault();
 		//charger_over_temperature_fault();
 		charger_over_temperature_under_voltage_fault();
