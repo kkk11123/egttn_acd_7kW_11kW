@@ -90,7 +90,7 @@ typedef union {
 	   uint32_t MC_START_ERR      : 1;
 	   uint32_t MC_STOP_ERR       : 1;
 	   uint32_t AC_OC_ERR         : 1;
-	   uint32_t AC_LV_ERR         : 1;
+	   //uint32_t AC_LV_ERR         : 1;
 	   uint32_t AC_OV_ERR         : 1;
 	   uint32_t AC_UV_ERR		  : 1;
 	   uint32_t CP_ERR     	    	 : 1;
