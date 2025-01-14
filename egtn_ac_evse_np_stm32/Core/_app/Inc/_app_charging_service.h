@@ -94,7 +94,7 @@ typedef union {
 	   uint32_t AC_OV_ERR         : 1;
 	   uint32_t AC_UV_ERR		  : 1;
 	   uint32_t CP_ERR     	    	 : 1;
-	   uint32_t OTEMP_ERR         : 1;
+	   //uint32_t OTEMP_ERR         : 1;
 	   uint32_t DM_COMM_ERR       : 1;
 	   uint32_t CSMS_COMM_ERR     : 1;
 	   uint32_t RFID_COMM_ERR      : 1;
@@ -106,6 +106,7 @@ typedef union {
    };
 } eCharger_Fault;
 
+extern int TEMP_ERR; //_app_system_control.c 파일에서 불러오기 위해 헤더파일에 선언
 
 #pragma pack(pop)
 #define CHARGSERV_FAULT_STATUS_LENGTH	32

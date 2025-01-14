@@ -444,7 +444,7 @@ void check_temp_loop()
 		temp_value = _MW_NTC_get_temp();
 #endif
 
-		if((temp_value >= OVER_TEMP_THRESHOLD) && (over_temp_flag == _FALSE))
+		if((temp_value >= OVER_TEMP_THRESHOLD) && (over_temp_flag == _FALSE)) //temp_value = 75 OVER
 		{
 #if 0
 			if(_OFF == config_app.send_msg_flag)
@@ -457,7 +457,9 @@ void check_temp_loop()
 
 				config_app.send_msg_mq = ChargServMQHandle;
 			}
+			
 #else
+			over_temp_flag = _TRUE;
 			_APP_CHARGSERV_over_temperature_fault_set();
 #endif
 		}
@@ -475,6 +477,7 @@ void check_temp_loop()
 				config_app.send_msg_mq = ChargServMQHandle;
 			}
 #else
+			over_temp_flag = _FALSE;
 			_APP_CHARGSERV_over_temperature_fault_reset();
 #endif
 		}

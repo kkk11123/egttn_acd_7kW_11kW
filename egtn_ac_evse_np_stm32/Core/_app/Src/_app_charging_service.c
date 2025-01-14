@@ -75,8 +75,7 @@ static sCharger Charger;
 static uint8_t charger_duty_ondelay_flag = 0;
 static uint8_t charger_duty_ondelay_complete = 0;
 int AC_LV_ERR = 0; //저전압 검출을 위한 변수 선언
-int AC_fault_status_bak;
-
+int TEMP_ERR = 0;
 
 //충전 상태에 따른 플래그 비트 초기화
 uint8_t charger_reset_reg_all_bit(eCharger_State cstate) 
@@ -1681,7 +1680,8 @@ void charger_indiled_display()
 		break;
 
 		case AutoReady :
-			if(AC_LV_ERR == 1)
+
+			if(TEMP_ERR == 1) //온도 에러 상태 표시
 			{
 				if((indiledtickcount == 1) || (indiledtickcount == 2) || (indiledtickcount == 3))
 				{
@@ -1689,7 +1689,7 @@ void charger_indiled_display()
 				}
 				else if((indiledtickcount == 4) || (indiledtickcount == 5) || (indiledtickcount == 6))
 				{
-					_MW_INDILED_sled_ctl(YELLOW);
+					_MW_INDILED_sled_ctl(PURPLE);
 				}
 			}
 			else
@@ -1707,7 +1707,7 @@ void charger_indiled_display()
 			//if((DC_6V == cp_state) || (PWM_6V == cp_state))
 			if(PWM_6V == cp_state)
 			{
-				if(AC_LV_ERR == 1)
+				if(AC_LV_ERR == 1) //저전압 상태 표시
 				{
 					if((indiledtickcount == 1) || (indiledtickcount == 2) || (indiledtickcount == 3))
 					{
@@ -1716,6 +1716,17 @@ void charger_indiled_display()
 					else if((indiledtickcount == 4) || (indiledtickcount == 5) || (indiledtickcount == 6))
 					{
 						_MW_INDILED_sled_ctl(YELLOW);
+					}
+				}
+				else if(TEMP_ERR == 1) //온도 에러 상태 표시
+				{
+					if((indiledtickcount == 1) || (indiledtickcount == 2) || (indiledtickcount == 3))
+					{
+						_MW_INDILED_sled_ctl(GREEN);
+					}
+					else if((indiledtickcount == 4) || (indiledtickcount == 5) || (indiledtickcount == 6))
+					{
+						_MW_INDILED_sled_ctl(PURPLE);
 					}
 				}
 				else
@@ -1767,21 +1778,23 @@ void charger_indiled_display()
 			
 			if((indiledtickcount == 1) || (indiledtickcount == 2))
 			{
-				if((0 == charger_fault_status_bak.Raw) && (AC_LV_ERR == 0))
+				if((0 == charger_fault_status_bak.Raw))
 				{
 					_MW_INDILED_sled_ctl(RED);
 					charger_fault_status_bak = charger_fault_status;
-					//printf("charger_fault_status_bak : %u \r\n", charger_fault_status_bak);
 
 				}
-//				else if((0 == charger_fault_status_bak.Raw) && (AC_LV_ERR == 1))
-//				{// 저전압 에러 검출 시 초록 <-> 노랑 반복을 위해 저전압 오류 플래그를 조건문에 사용
-//					_MW_INDILED_sled_ctl(GREEN);
+//				if((0 == charger_fault_status_bak.Raw) && (charger_fault_status.OTEMP_ERR ==_OFF))
+//				{
+//					_MW_INDILED_sled_ctl(RED);
 //					charger_fault_status_bak = charger_fault_status;
-//					AC_fault_status_bak = AC_LV_ERR;
-//					//printf("green");
-//					//printf("charger_fault_status_bak : %u \r\n", charger_fault_status_bak);
+//
 //				}
+				// else if ((0 == charger_fault_status_bak.Raw) && (charger_fault_status.OTEMP_ERR ==_ON))
+				// {
+				// 	_MW_INDILED_sled_ctl(GREEN);
+				// 	charger_fault_status_bak = charger_fault_status;
+				// }
 			}
 			else if((indiledtickcount == 3) || (indiledtickcount == 4))
 			{
@@ -1818,10 +1831,10 @@ void charger_indiled_display()
 				{
 					_MW_INDILED_sled_ctl(PURPLE);
 				}
-				else if(_ON == charger_fault_status_bak.OTEMP_ERR)
-				{
-					_MW_INDILED_sled_ctl(BLACK);
-				}
+				// else if(_ON == charger_fault_status_bak.OTEMP_ERR)
+				// {
+				// 	_MW_INDILED_sled_ctl(PURPLE);
+				// }
 				else if(_ON == charger_fault_status_bak.RFID_COMM_ERR)
 				{
 					_MW_INDILED_sled_ctl(WHITE);
@@ -1869,11 +1882,11 @@ void charger_indiled_display()
 					_MW_INDILED_sled_ctl(SKY);
 					charger_fault_status_bak.CP_VOLTAGE_ERR = _OFF;
 				}
-				else if(_ON == charger_fault_status_bak.OTEMP_ERR)
-				{
-					_MW_INDILED_sled_ctl(BLACK);
-					charger_fault_status_bak.OTEMP_ERR = _OFF;
-				}
+				// else if(_ON == charger_fault_status_bak.OTEMP_ERR)
+				// {
+				// 	_MW_INDILED_sled_ctl(PURPLE);
+				// 	charger_fault_status_bak.OTEMP_ERR = _OFF;
+				// }
 				else if(_ON == charger_fault_status_bak.RFID_COMM_ERR)
 				{
 					_MW_INDILED_sled_ctl(WHITE);
@@ -4334,9 +4347,10 @@ void charger_over_temperature_under_voltage_fault()
 	unsigned int fault_under_voltage = 18000;
 	eCharger_State state = _APP_CHARGSERV_get_current_state();
 
-	if(_ON == _APP_CHARGSERV_is_over_temperature_fault_set()) //OTEMP_ERR이 ON이면
+	if(1 == _APP_CHARGSERV_is_over_temperature_fault_set()) //OTEMP_ERR이 ON이면
 	{
-		_LIB_USERDELAY_start(&gTimeout_over_temp_set_fault, DELAY_RENEW_OFF);
+		//_APP_CHARGSERV_over_temperature_fault_set();
+		_LIB_USERDELAY_start(&gTimeout_over_temp_set_fault, DELAY_RENEW_OFF);//600초 == 10분
 
 		if(_TRUE == _LIB_USERDELAY_isfired(&gTimeout_over_temp_set_fault))
 		{
@@ -4352,6 +4366,7 @@ void charger_over_temperature_under_voltage_fault()
 	}
 	else //OTEMP_ERR이 OFF이면
 	{
+		//_APP_CHARGSERV_over_temperature_fault_reset();
 		_LIB_USERDELAY_stop(&gTimeout_over_temp_set_fault);
 		if(over_temp_step != 0)
 		{
@@ -4367,7 +4382,8 @@ void charger_over_temperature_under_voltage_fault()
 	{
 		if(Charger.current_V_rms < fault_under_voltage)//현재 전압값이 180V 미만일 때 step 증가
 		{
-			_LIB_USERDELAY_start(&gTimeout_ac_uv_set_fault, DELAY_RENEW_OFF);
+			AC_LV_ERR = 1; //활성화
+			_LIB_USERDELAY_start(&gTimeout_ac_uv_set_fault, DELAY_RENEW_OFF); //30초
 
 			if(_TRUE == _LIB_USERDELAY_isfired(&gTimeout_ac_uv_set_fault))
 			{
@@ -4380,7 +4396,7 @@ void charger_over_temperature_under_voltage_fault()
 					//printf("current-V_rms1 = %ld \r\n", Charger.current_V_rms);
 #endif
 				}
-				AC_LV_ERR = 1; //활성화
+				
 				_LIB_LOGGING_printf("AC_LV_ERR activated (Voltage < 180V)\r\n");
 
 			}
@@ -4415,7 +4431,6 @@ void charger_over_temperature_under_voltage_fault()
 		}
 		else
 		{
-			AC_LV_ERR = 1; //활성화
 			_LIB_USERDELAY_stop(&gTimeout_ac_uv_clr_fault);
 		}
 	}
@@ -4432,17 +4447,17 @@ void charger_over_temperature_under_voltage_fault()
 
 uint8_t _APP_CHARGSERV_is_over_temperature_fault_set()
 {
-	return charger_fault_status.OTEMP_ERR;
+	return TEMP_ERR;
 }
 
 void _APP_CHARGSERV_over_temperature_fault_set()
 {
-	charger_fault_status.OTEMP_ERR = _ON;
+	TEMP_ERR = 1;
 }
 
 void _APP_CHARGSERV_over_temperature_fault_reset()
 {
-	charger_fault_status.OTEMP_ERR = _OFF;
+	TEMP_ERR = 0;
 }
 
 void charger_cp_fault()
