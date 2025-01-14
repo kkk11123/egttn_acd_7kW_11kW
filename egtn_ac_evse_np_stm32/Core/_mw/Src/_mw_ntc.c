@@ -280,14 +280,17 @@ uint8_t _MW_NTC_cal_temp()
 
 uint8_t _MW_NTC_loop()
 {
+
 	uint8_t ret_value = _FALSE;
 
 	if(_TRUE == _MW_NTC_store_value(gADCData[ADC_TEMP_INDEX_]))
 	{
 		if(_TRUE == _MW_NTC_cal_temp())
 		{
+
 #if ((__NTC_DEBUG__)==1)
-		_LIB_LOGGING_printf("temp : %d \r\n",_MW_NTC_get_temp());
+				_LIB_LOGGING_printf("temp : %d \r\n",_MW_NTC_get_temp());
+
 #endif
 			ret_value = _TRUE;
 

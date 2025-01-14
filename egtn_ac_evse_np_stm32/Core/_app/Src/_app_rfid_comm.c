@@ -473,7 +473,7 @@ void _APP_RFID_state_machine()
 	}
 }
 
-
+ 
 void _APP_RFID_set_start_tagging(uint8_t mode)
 {
 	eRFID_State mstate = rfid_get_current_state();
@@ -647,8 +647,8 @@ void _APP_RFID_check_status_loop()
 	{
 		tick = 0;
 		_APP_RFID_req(0xD7);
-		//printf("0xD7\r\n");
-		_LIB_USERDELAY_start(&gTimeout_rfid_comm_fault, DELAY_RENEW_OFF);
+		printf("0xD7\r\n");
+		_LIB_USERDELAY_start(&gTimeout_rfid_comm_fault, DELAY_RENEW_OFF); //20초
 	}
 
 	if(_LIB_USERDELAY_isfired(&gTimeout_rfid_comm_fault))

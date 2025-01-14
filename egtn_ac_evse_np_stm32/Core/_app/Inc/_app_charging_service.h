@@ -25,7 +25,7 @@
 
 typedef enum ECharger_State
 {
-    Init = 1,			//
+    Init = 1,			
     Ready,
 	AutoReady,
     UserCheck,
@@ -90,10 +90,11 @@ typedef union {
 	   uint32_t MC_START_ERR      : 1;
 	   uint32_t MC_STOP_ERR       : 1;
 	   uint32_t AC_OC_ERR         : 1;
-	   uint32_t AC_UV_ERR         : 1;
+	   //uint32_t AC_LV_ERR         : 1;
 	   uint32_t AC_OV_ERR         : 1;
+	   uint32_t AC_UV_ERR		  : 1;
 	   uint32_t CP_ERR     	    	 : 1;
-	   uint32_t OTEMP_ERR         : 1;
+	   //uint32_t OTEMP_ERR         : 1;
 	   uint32_t DM_COMM_ERR       : 1;
 	   uint32_t CSMS_COMM_ERR     : 1;
 	   uint32_t RFID_COMM_ERR      : 1;
@@ -104,6 +105,9 @@ typedef union {
 	   uint32_t Reseverd15        : 1;
    };
 } eCharger_Fault;
+
+extern int TEMP_ERR; //_app_system_control.c 파일에서 불러오기 위해 헤더파일에 선언
+
 #pragma pack(pop)
 #define CHARGSERV_FAULT_STATUS_LENGTH	32
 
@@ -504,6 +508,6 @@ void _APP_CHARGSERV_set_chargingcontinuousmode(uint8_t mode);
 
 void _APP_CHARGSERV_startup();
 void _APP_CHARGSERV_process(void);
-
+void charger_emg_fault();
 
 #endif /* APP_INC__APP_CHARGING_SERVICE_H_ */

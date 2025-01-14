@@ -27,6 +27,7 @@ static gUserDelay gTimeout_wd_fault;
 static gUserDelay gTimeout_ac_oc_fault;
 static gUserDelay gTimeout_ac_oc_fast_fault;
 static gUserDelay gTimeout_ac_ov_fault;
+static gUserDelay gTimeout_ac_lv_fault;
 static gUserDelay gTimeout_ac_uv_set_fault;
 static gUserDelay gTimeout_ac_uv_clr_fault;
 static gUserDelay gTimeout_csms_fault;
@@ -73,8 +74,11 @@ static void charger_change_state(eCharger_State currentstate, eCharger_State cha
 static sCharger Charger;
 static uint8_t charger_duty_ondelay_flag = 0;
 static uint8_t charger_duty_ondelay_complete = 0;
+int AC_LV_ERR = 0; //저전압 검출을 위한 변수 선언
+int TEMP_ERR = 0;
 
-uint8_t charger_reset_reg_all_bit(eCharger_State cstate)
+//충전 상태에 따른 플래그 비트 초기화
+uint8_t charger_reset_reg_all_bit(eCharger_State cstate) 
 {
 	switch(cstate)
 	{
@@ -145,12 +149,18 @@ uint8_t charger_set_mode(eCharger_Mode cmode)
 	return _TRUE;
 }
 
+eCharger_State _APP_CHARGSERV_get_current_state()
+{
+	return Charger.state;
+}
+
 
 eCharger_Mode charger_get_mode()
 {
 	return Charger.mode;
 }
 
+//상태를 변화시키면 현재 상태의 플래그는 초기화, 바꿀 상태의 플래그 설정
 void charger_change_state(eCharger_State currentstate, eCharger_State changestate)
 {
 	charger_reset_reg_all_bit(currentstate);
@@ -424,10 +434,6 @@ void charger_set_powercut_pass_count(char * str)
 	}
 }
 
-eCharger_State _APP_CHARGSERV_get_current_state()
-{
-	return Charger.state;
-}
 
 #if 0
 uint8_t _APP_CHARGSERV_get_current_reg_bit(eCharger_State cstate, uint8_t regvalue)
@@ -526,6 +532,7 @@ uint8_t _APP_CHARGSERV_ready_powercutstart()
 	return _FALSE;
 }
 
+//자동 시작 모드 플래그 설정
 uint8_t _APP_CHARGSERV_ready_automodeflag()
 {
 	eCharger_State stemp = _APP_CHARGSERV_get_current_state();
@@ -545,6 +552,7 @@ uint8_t _APP_CHARGSERV_ready_automodeflag()
 	return _FALSE;
 }
 
+// 자동 시작 모드 -> 수동 시작 모드 플래그 설정
 uint8_t _APP_CHARGSERV_autoready_manualmodeflag()
 {
 	eCharger_State stemp = _APP_CHARGSERV_get_current_state();
@@ -565,6 +573,7 @@ uint8_t _APP_CHARGSERV_autoready_manualmodeflag()
 	return _FALSE;
 }
 
+//자동시작모드에서 충전기 연결시 플래그 설정
 uint8_t _APP_CHARGSERV_autoready_connected()
 {
 	eCharger_State stemp = _APP_CHARGSERV_get_current_state();
@@ -585,6 +594,7 @@ uint8_t _APP_CHARGSERV_autoready_connected()
 	return _FALSE;
 }
 
+//Usercheck 완료 시 서버 연결 플래그 설정
 uint8_t _APP_CHARGSERV_usercheck_serverconnectstart()
 {
 	eCharger_State stemp = _APP_CHARGSERV_get_current_state();
@@ -604,6 +614,7 @@ uint8_t _APP_CHARGSERV_usercheck_serverconnectstart()
 	return _FALSE;
 }
 
+//유저 확인 완료 플래그 설정
 uint8_t _APP_CHARGSERV_usercheck_user_ok()
 {
 	eCharger_State stemp = _APP_CHARGSERV_get_current_state();
@@ -666,6 +677,7 @@ uint8_t _APP_CHARGSERV_connect_ok()
 	return _FALSE;
 }
 
+//충전건 연결 시간 초과 플래그 설정 
 uint8_t _APP_CHARGSERV_connect_timeout()
 {
 	eCharger_State stemp = _APP_CHARGSERV_get_current_state();
@@ -685,6 +697,7 @@ uint8_t _APP_CHARGSERV_connect_timeout()
 	return _FALSE;
 }
 
+//충전해도 괜찮다는 플래그 설정
 uint8_t _APP_CHARGSERV_charging_ok()
 {
 	eCharger_State stemp = _APP_CHARGSERV_get_current_state();
@@ -704,7 +717,7 @@ uint8_t _APP_CHARGSERV_charging_ok()
 	return _FALSE;
 }
 
-
+// 충전 끝 플래그
 uint8_t _APP_CHARGSERV_finish_ok()
 {
 	eCharger_State stemp = _APP_CHARGSERV_get_current_state();
@@ -743,6 +756,7 @@ uint8_t _APP_CHARGSERV_powercut_timepass_ok()
 	return _FALSE;
 }
 
+//상태를 fault로 변경 후 오류 플래그 설정
 uint8_t _APP_CHARGSERV_fault_set()
 {
 	eCharger_State stemp = _APP_CHARGSERV_get_current_state();
@@ -751,6 +765,7 @@ uint8_t _APP_CHARGSERV_fault_set()
 	{
 		charger_change_state(stemp, Fault);
 		//CHARGSERV_REG_FAULT_SET
+		Charger.reg.fault_reset = 0;
 		Charger.reg.fault_set = 1;
 	#if ((__CHARGSERV_DEBUG__)==1)
 			_LIB_LOGGING_printf("#### CHARGSERV : Fault Set #### \r\n");
@@ -762,6 +777,7 @@ uint8_t _APP_CHARGSERV_fault_set()
 	return _FALSE;
 }
 
+//오류 리셋 플래그 설정
 uint8_t _APP_CHARGSERV_fault_reset()
 {
 	eCharger_State stemp = _APP_CHARGSERV_get_current_state();
@@ -769,7 +785,6 @@ uint8_t _APP_CHARGSERV_fault_reset()
 	if((stemp == Fault) && (1 == Charger.reg.fault_set))
 	{
 		//charger_write_reg_bit(Fault, CHARGSERV_REG_FAULT_SET, _OFF);
-		Charger.reg.fault_set = 0;
 		//charger_write_reg_bit(Fault, CHARGSERV_REG_FAULT_RESET, _ON);
 		Charger.reg.fault_reset = 1;
 #if ((__CHARGSERV_DEBUG__)==1)
@@ -894,7 +909,7 @@ uint8_t _APP_CHARGSERV_print_kwh(char * str, uint32_t energy, uint8_t printunit)
 #endif
 
 
-
+//모드 설정 : 기본 7kW
 uint8_t charger_set_modecfg()
 {
 	eCharger_Mode mode_temp = mode_11KW;
@@ -938,7 +953,7 @@ uint8_t charger_set_modecfg()
 		mode_temp = mode_config;
 	}
 #endif
-
+	//기본 시작 -> 자동 시작 모드
 	if(CHARGSERV_READ_DEFAULT_START_MODE)
 	{
 		_LIB_LOGGING_printf("Option __ DEFAULT_START : Auto START \r\n");
@@ -959,6 +974,7 @@ uint8_t charger_set_modecfg()
 		Charger.autostartmode_flag = 1;
 	}
 
+	//수동 시작 모드 시
 	if(0 == Charger.autostartmode_flag)
 	{
 		//charger_clr_dev();
@@ -969,7 +985,7 @@ uint8_t charger_set_modecfg()
 		GPO_MC_TURN_OFF_DISABLE;//_MW_GPIO_set_gpo(MC_TURN_OFF, _OFF);
 		GPO_MC_TURN_ON_DISABLE;//_MW_GPIO_set_gpo(MC_TURN_ON, _OFF);
 	}
-	else
+	else //자동 시작 모드 시
 	{
 		Charger.reg.dev_flag = 1;
 		GPO_MC_TURN_OFF_DISABLE;//_MW_GPIO_set_gpo(MC_TURN_OFF, _ON);
@@ -1664,7 +1680,22 @@ void charger_indiled_display()
 		break;
 
 		case AutoReady :
-			_MW_INDILED_sled_ctl(BLUE);
+
+			if(TEMP_ERR == 1) //온도 에러 상태 표시
+			{
+				if((indiledtickcount == 1) || (indiledtickcount == 2) || (indiledtickcount == 3))
+				{
+					_MW_INDILED_sled_ctl(GREEN);
+				}
+				else if((indiledtickcount == 4) || (indiledtickcount == 5) || (indiledtickcount == 6))
+				{
+					_MW_INDILED_sled_ctl(PURPLE);
+				}
+			}
+			else
+			{
+				_MW_INDILED_sled_ctl(BLUE);
+			}
 		break;
 
 		case UserCheck :
@@ -1676,7 +1707,7 @@ void charger_indiled_display()
 			//if((DC_6V == cp_state) || (PWM_6V == cp_state))
 			if(PWM_6V == cp_state)
 			{
-				if(0)
+				if(AC_LV_ERR == 1) //저전압 상태 표시
 				{
 					if((indiledtickcount == 1) || (indiledtickcount == 2) || (indiledtickcount == 3))
 					{
@@ -1685,6 +1716,17 @@ void charger_indiled_display()
 					else if((indiledtickcount == 4) || (indiledtickcount == 5) || (indiledtickcount == 6))
 					{
 						_MW_INDILED_sled_ctl(YELLOW);
+					}
+				}
+				else if(TEMP_ERR == 1) //온도 에러 상태 표시
+				{
+					if((indiledtickcount == 1) || (indiledtickcount == 2) || (indiledtickcount == 3))
+					{
+						_MW_INDILED_sled_ctl(GREEN);
+					}
+					else if((indiledtickcount == 4) || (indiledtickcount == 5) || (indiledtickcount == 6))
+					{
+						_MW_INDILED_sled_ctl(PURPLE);
 					}
 				}
 				else
@@ -1733,16 +1775,26 @@ void charger_indiled_display()
 		break;
 
 		case Fault :
-			//_MW_INDILED_sled_ctl(RED);
+			
 			if((indiledtickcount == 1) || (indiledtickcount == 2))
 			{
-				if(0 == charger_fault_status_bak.Raw)
+				if((0 == charger_fault_status_bak.Raw))
 				{
 					_MW_INDILED_sled_ctl(RED);
 					charger_fault_status_bak = charger_fault_status;
-					printf("charger_fault_status_bak : %u \r\n", charger_fault_status_bak);
 
 				}
+//				if((0 == charger_fault_status_bak.Raw) && (charger_fault_status.OTEMP_ERR ==_OFF))
+//				{
+//					_MW_INDILED_sled_ctl(RED);
+//					charger_fault_status_bak = charger_fault_status;
+//
+//				}
+				// else if ((0 == charger_fault_status_bak.Raw) && (charger_fault_status.OTEMP_ERR ==_ON))
+				// {
+				// 	_MW_INDILED_sled_ctl(GREEN);
+				// 	charger_fault_status_bak = charger_fault_status;
+				// }
 			}
 			else if((indiledtickcount == 3) || (indiledtickcount == 4))
 			{
@@ -1767,6 +1819,10 @@ void charger_indiled_display()
 				{
 					_MW_INDILED_sled_ctl(SKY);
 				}
+//				else if(AC_fault_status_bak == 1)
+//				{
+//					_MW_INDILED_sled_ctl(YELLOW);
+//				}
 				else if(_ON == charger_fault_status_bak.CP_ERR)
 				{
 					_MW_INDILED_sled_ctl(PURPLE);
@@ -1775,10 +1831,10 @@ void charger_indiled_display()
 				{
 					_MW_INDILED_sled_ctl(PURPLE);
 				}
-				else if(_ON == charger_fault_status_bak.OTEMP_ERR)
-				{
-					_MW_INDILED_sled_ctl(BLACK);
-				}
+				// else if(_ON == charger_fault_status_bak.OTEMP_ERR)
+				// {
+				// 	_MW_INDILED_sled_ctl(PURPLE);
+				// }
 				else if(_ON == charger_fault_status_bak.RFID_COMM_ERR)
 				{
 					_MW_INDILED_sled_ctl(WHITE);
@@ -1811,6 +1867,11 @@ void charger_indiled_display()
 					_MW_INDILED_sled_ctl(SKY);
 					charger_fault_status_bak.AC_OV_ERR = _OFF;
 				}
+//				else if(AC_fault_status_bak == 1)
+//				{
+//					_MW_INDILED_sled_ctl(YELLOW);
+//					AC_fault_status_bak = 0;
+//				}
 				else if(_ON == charger_fault_status_bak.CP_ERR)
 				{
 					_MW_INDILED_sled_ctl(PURPLE);
@@ -1821,11 +1882,11 @@ void charger_indiled_display()
 					_MW_INDILED_sled_ctl(SKY);
 					charger_fault_status_bak.CP_VOLTAGE_ERR = _OFF;
 				}
-				else if(_ON == charger_fault_status_bak.OTEMP_ERR)
-				{
-					_MW_INDILED_sled_ctl(BLACK);
-					charger_fault_status_bak.OTEMP_ERR = _OFF;
-				}
+				// else if(_ON == charger_fault_status_bak.OTEMP_ERR)
+				// {
+				// 	_MW_INDILED_sled_ctl(PURPLE);
+				// 	charger_fault_status_bak.OTEMP_ERR = _OFF;
+				// }
 				else if(_ON == charger_fault_status_bak.RFID_COMM_ERR)
 				{
 					_MW_INDILED_sled_ctl(WHITE);
@@ -2338,7 +2399,7 @@ void charger_cp_state_control()
 					break;
 					case Charg_Start :
 						//if(Charger.current_I_rms > CHARGSERV_AMPE_MAX_HALF_VALUE)
-						if(Charger.current_I_rms > (Charger.active_Ampe * 500))
+						if(Charger.current_I_rms > (Charger.active_Ampe * 500)) //활성전류 * 500 보다 현재 전류 값이 더 크면 안정 상태로 간주
 						{
 							_LIB_USERDELAY_start(&gTimeout_charging_stable, DELAY_RENEW_OFF);
 
@@ -3643,19 +3704,20 @@ void charger_autostartmode_handler()
 	{
 		if(button_pushed == 1)
 		{
-			charger_fault_status.EMG_INPUT = _ON;
+			charger_emg_fault();
 			charger_fault_status.Raw |= (1 << EMG_INPUT_BIT);
 			_MW_INDILED_sled_ctl(RED);
+
 
 
 		}
 		else
 		{
-			charger_fault_status.EMG_INPUT = _OFF;
+			charger_emg_fault();
 			charger_fault_status.Raw &= ~(1 << EMG_INPUT_BIT);
 
 
-			//charger_emg_fault();
+
 		}
 	}
 
@@ -3690,6 +3752,7 @@ void charger_autostartmode_handler()
 			}
 		}
 	}
+
 	else
 	{
 		_LIB_USERDELAY_stop(&gDelay_autostartmode_input);
@@ -3878,7 +3941,7 @@ uint8_t _APP_CHARGSERV_set_active_Ampe(uint8_t mode)
 #else
 uint8_t _APP_CHARGSERV_set_active_Ampe(uint8_t step)
 {
-	uint8_t ret_value = _FALSE;
+	uint8_t ret_value = _FALSE; //step = 2
 	static uint8_t ampe_bak = 0xff;
 	eCharger_Mode temp_mode;
 	uint8_t max_ampe;
@@ -3886,22 +3949,22 @@ uint8_t _APP_CHARGSERV_set_active_Ampe(uint8_t step)
 
 	temp_mode = charger_get_mode();
 
-	switch(temp_mode)
+	switch(temp_mode) //충전 모드를 가지고 와서 
 	{
 		case mode_3KW :
-			max_ampe = CHARGSERV_MAXIMUM_AMPE_3KW;
+			max_ampe = CHARGSERV_MAXIMUM_AMPE_3KW; //3kW 일 때 최대 전류 13
 		break;
 		case mode_5KW :
-			max_ampe = CHARGSERV_MAXIMUM_AMPE_5KW;
+			max_ampe = CHARGSERV_MAXIMUM_AMPE_5KW; //5kW 일 때 최대 전류 22
 		break;
 		case mode_7KW :
-			max_ampe = CHARGSERV_MAXIMUM_AMPE_7KW;
+			max_ampe = CHARGSERV_MAXIMUM_AMPE_7KW; //7kW 일 때 최대 전류 32
 		break;
 		case mode_11KW :
-			max_ampe = CHARGSERV_MAXIMUM_AMPE_11KW;
+			max_ampe = CHARGSERV_MAXIMUM_AMPE_11KW; //11kW 일 때 최대 전류 50
 		break;
 		default :
-			max_ampe = CHARGSERV_MAXIMUM_AMPE_11KW;
+			max_ampe = CHARGSERV_MAXIMUM_AMPE_11KW; //기본값 최대 전류 50
 		break;
 	}
 
@@ -3911,7 +3974,7 @@ uint8_t _APP_CHARGSERV_set_active_Ampe(uint8_t step)
 			step_constant = 0.9;
 		break;
 		case 2 :
-			step_constant = 0.8;
+			step_constant = 0.8; //step이 2니까 0.8
 		break;
 		default :
 			step_constant = 1.0;
@@ -3919,8 +3982,9 @@ uint8_t _APP_CHARGSERV_set_active_Ampe(uint8_t step)
 	}
 
 	Charger.active_Ampe = (uint8_t)(max_ampe * step_constant);
+	//활성 전류 = step 상수 * 모드 별 최대 전류
 
-	if(ampe_bak != Charger.active_Ampe)
+	if(ampe_bak != Charger.active_Ampe) //활성 전류가 이전 값과 다르면 
 	{
 #if ((__CHARGSERV_DEBUG__)==1)
 		_LIB_LOGGING_printf("#### CHARGSERV_set_active_Ampe :%d #### \r\n",Charger.active_Ampe);
@@ -3941,7 +4005,7 @@ unsigned long _APP_CHARGSERV_get_voltage_rms_V()
 {
 	unsigned long temp = 0;
 
-	temp = (Charger.current_V_rms / 100);
+	temp = (Charger.current_V_rms / 100); //mv -> v단위로 변환
 
 	return temp;
 }
@@ -3954,9 +4018,9 @@ unsigned long _APP_CHARGSERV_get_current_rms_A()
 {
 	unsigned long temp = 0;
 
-	if(_TRUE == charger_is_load_detect_evse())
+	if(_TRUE == charger_is_load_detect_evse()) //충전기의 부하 감지 되었으면 rms 전류값 가져오기
 	{
-		temp = (Charger.current_I_rms / 1000);
+		temp = (Charger.current_I_rms / 1000); //mA -> A로 변환
 	}
 
 	return temp;
@@ -3971,7 +4035,7 @@ void charger_emg_fault()
 {
 	eCharger_State charger_state = _APP_CHARGSERV_get_current_state();
 
-	if((AutoReady == charger_state) || (1 == Charger.automode_active))
+	if((AutoReady == charger_state) || (1 == Charger.automode_active)| (0 == Charger.automode_active))
 	{
 		charger_fault_status.EMG_INPUT = _OFF;
 		return;
@@ -4006,7 +4070,6 @@ void charger_emg_fault()
 
 void charger_wd_fault()
 {
-
 	if((_ON == _MW_CP_get_mc_relay_state()) && (_OFF == _MW_GPIO_get_gpi(WELD)))
 	{
 		if(_TRUE == _LIB_USERDELAY_start(&gTimeout_wd_fault, DELAY_RENEW_OFF))
@@ -4078,7 +4141,6 @@ void charger_wd_fault()
 }
 void charger_over_voltage_fault()
 {
-	//unsigned int fault_over_voltage = 24200;//CHARGSERV_MAXIMUM_AMPE * 1140;
 	unsigned int fault_over_voltage = 24800;
 
 	if(charger_fault_status.AC_OV_ERR == _OFF)
@@ -4096,6 +4158,9 @@ void charger_over_voltage_fault()
 		{
 			_LIB_USERDELAY_stop(&gTimeout_ac_ov_fault);
 			charger_fault_status.AC_OV_ERR = _ON;
+			//eCharger_State temp = _APP_CHARGSERV_get_current_state();
+			//printf("current_state = %d \r\n", temp);
+
 		}
 	}
 	else if(charger_fault_status.AC_OV_ERR == _ON)
@@ -4118,8 +4183,45 @@ void charger_over_voltage_fault()
 }
 void charger_under_voltage_fault()
 {
+	// //220V * (-10%) = 198V
+	// unsigned int fault_low_voltage = 19800;
+	
+	// if(charger_fault_status.AC_LV_ERR == _OFF)
+	// {
+	// 	if(Charger.current_V_rms <= fault_low_voltage)
+	// 	{
+	// 		_LIB_USERDELAY_start(&gTimeout_ac_lv_fault, DELAY_RENEW_OFF);
+	// 	}
+	// 	else
+	// 	{
+	// 		_LIB_USERDELAY_stop(&gTimeout_ac_lv_fault);
+	// 	}
 
+	// 	if(_TRUE == _LIB_USERDELAY_isfired(&gTimeout_ac_lv_fault))
+	// 	{
+	// 		_LIB_USERDELAY_stop(&gTimeout_ac_lv_fault);
+	// 		charger_fault_status.AC_LV_ERR = _ON;
+	// 	}
+	// }
+	// else if(charger_fault_status.AC_LV_ERR == _ON)
+	// {
+	// 	if(Charger.current_V_rms > fault_low_voltage)
+	// 	{
+	// 		_LIB_USERDELAY_start(&gTimeout_ac_lv_fault, DELAY_RENEW_OFF);
+	// 	}
+	// 	else
+	// 	{
+	// 		_LIB_USERDELAY_stop(&gTimeout_ac_lv_fault);
+	// 	}
+
+	// 	if(_TRUE == _LIB_USERDELAY_isfired(&gTimeout_ac_lv_fault))
+	// 	{
+	// 		_LIB_USERDELAY_stop(&gTimeout_ac_lv_fault);
+	// 		charger_fault_status.AC_LV_ERR = _OFF;
+	// 	}
+	// }
 }
+
 void charger_over_current_fault()
 {
 	//110% <= I < 125%, 1000s
@@ -4133,8 +4235,8 @@ void charger_over_current_fault()
 #else
 	//unsigned int waring_over_current = Charger.active_Ampe * 1100;//CHARGSERV_MAXIMUM_AMPE * 1100;
 	//unsigned int fault_over_current = Charger.active_Ampe * 1250;//CHARGSERV_MAXIMUM_AMPE * 1140;
-	unsigned int waring_over_current = Charger.active_Ampe * 1200;
-	unsigned int fault_over_current = Charger.active_Ampe * 1250;//CHARGSERV_MAXIMUM_AMPE * 1140;
+	unsigned int waring_over_current = Charger.active_Ampe * 1200; //과전류 위험
+	unsigned int fault_over_current = Charger.active_Ampe * 1250;//과전류 에러 CHARGSERV_MAXIMUM_AMPE * 1140;
 #endif
 
 	if(charger_fault_status.AC_OC_ERR == _OFF)
@@ -4238,15 +4340,17 @@ void charger_over_current_fault()
 }
 void charger_over_temperature_under_voltage_fault()
 {
+	uint8_t total_step = 0;
 	static uint8_t over_temp_step = 0;
 	static uint8_t under_voltage_step = 0;
-	uint8_t total_step = 0;
+	//uint8_t total_step = 0;
 	unsigned int fault_under_voltage = 18000;
 	eCharger_State state = _APP_CHARGSERV_get_current_state();
 
-	if(_ON == _APP_CHARGSERV_is_over_temperature_fault_set())
+	if(1 == _APP_CHARGSERV_is_over_temperature_fault_set()) //OTEMP_ERR이 ON이면
 	{
-		_LIB_USERDELAY_start(&gTimeout_over_temp_set_fault, DELAY_RENEW_OFF);
+		//_APP_CHARGSERV_over_temperature_fault_set();
+		_LIB_USERDELAY_start(&gTimeout_over_temp_set_fault, DELAY_RENEW_OFF);//600초 == 10분
 
 		if(_TRUE == _LIB_USERDELAY_isfired(&gTimeout_over_temp_set_fault))
 		{
@@ -4260,8 +4364,9 @@ void charger_over_temperature_under_voltage_fault()
 			}
 		}
 	}
-	else
+	else //OTEMP_ERR이 OFF이면
 	{
+		//_APP_CHARGSERV_over_temperature_fault_reset();
 		_LIB_USERDELAY_stop(&gTimeout_over_temp_set_fault);
 		if(over_temp_step != 0)
 		{
@@ -4273,12 +4378,12 @@ void charger_over_temperature_under_voltage_fault()
 		}
 	}
 
-
-	if(Charging == state)
+	if(Charging == state)//충전 상태
 	{
-		if(Charger.current_V_rms < fault_under_voltage)
+		if(Charger.current_V_rms < fault_under_voltage)//현재 전압값이 180V 미만일 때 step 증가
 		{
-			_LIB_USERDELAY_start(&gTimeout_ac_uv_set_fault, DELAY_RENEW_OFF);
+			AC_LV_ERR = 1; //활성화
+			_LIB_USERDELAY_start(&gTimeout_ac_uv_set_fault, DELAY_RENEW_OFF); //30초
 
 			if(_TRUE == _LIB_USERDELAY_isfired(&gTimeout_ac_uv_set_fault))
 			{
@@ -4288,18 +4393,23 @@ void charger_over_temperature_under_voltage_fault()
 					under_voltage_step++;
 #if ((__CHARGSERV_DEBUG__)==1)
 					_LIB_LOGGING_printf("^^^^ under_voltage_step++ : %d \r\n",under_voltage_step);
+					//printf("current-V_rms1 = %ld \r\n", Charger.current_V_rms);
 #endif
 				}
+				
+				_LIB_LOGGING_printf("AC_LV_ERR activated (Voltage < 180V)\r\n");
+
 			}
 		}
 		else
 		{
+			AC_LV_ERR = 0; //비활성화
 			_LIB_USERDELAY_stop(&gTimeout_ac_uv_set_fault);
 		}
 	}
-	else if((Ready == state) && (under_voltage_step > 0))
+	else if((Ready == state) && (under_voltage_step > 0)) //준비 상태이고 저전압 step이 0 초과이면
 	{
-		if(Charger.current_V_rms >= fault_under_voltage)
+		if(Charger.current_V_rms >= fault_under_voltage) //현재 전압 값이 180V 이상이면 step = 0
 		{
 			_LIB_USERDELAY_start(&gTimeout_ac_uv_clr_fault, DELAY_RENEW_OFF);
 
@@ -4313,6 +4423,10 @@ void charger_over_temperature_under_voltage_fault()
 					_LIB_LOGGING_printf("^^^^ under_voltage_step_clear \r\n");
 #endif
 				}
+				AC_LV_ERR = 0; //비활성화
+
+				_LIB_LOGGING_printf("AC_LV_ERR deactivated (Ready state, Voltage >= 180V)\r\n");
+
 			}
 		}
 		else
@@ -4321,10 +4435,10 @@ void charger_over_temperature_under_voltage_fault()
 		}
 	}
 
-	total_step = over_temp_step + under_voltage_step;
+	total_step = over_temp_step + under_voltage_step; //초과 온도 스텝과 저전압 스텝을 합쳤을 때 2보다 크면
 	if(total_step >= CHARGSERV_AMPE_CONVERSION_STEP)
 	{
-		total_step = CHARGSERV_AMPE_CONVERSION_STEP;
+		total_step = CHARGSERV_AMPE_CONVERSION_STEP; //step 을 2로
 	}
 
 	_APP_CHARGSERV_set_active_Ampe(total_step);
@@ -4333,17 +4447,17 @@ void charger_over_temperature_under_voltage_fault()
 
 uint8_t _APP_CHARGSERV_is_over_temperature_fault_set()
 {
-	return charger_fault_status.OTEMP_ERR;
+	return TEMP_ERR;
 }
 
 void _APP_CHARGSERV_over_temperature_fault_set()
 {
-	charger_fault_status.OTEMP_ERR = _ON;
+	TEMP_ERR = 1;
 }
 
 void _APP_CHARGSERV_over_temperature_fault_reset()
 {
-	charger_fault_status.OTEMP_ERR = _OFF;
+	TEMP_ERR = 0;
 }
 
 void charger_cp_fault()
@@ -4767,18 +4881,20 @@ void _APP_CHARGSERV_fault_loop()
 #if ((_CERTIFICATION_MODE_)==_CERTIFICATION_NON_)
 	if(0 == Charger.reg.dev_flag)//수동 시작 모드
 	{
-		charger_emg_fault();
+		charger_emg_fault();//추가
 		charger_wd_fault();
 		charger_over_voltage_fault();
+		//charger_under_voltage_fault();
 		charger_over_current_fault();
-		//charger_over_temperature_under_voltage_fault();
+		charger_over_temperature_under_voltage_fault();
 		charger_cp_fault();
 		charger_leakage_fault();
 	}
 	else //자동 시작 모드
 	{
-		charger_emg_fault();
-		charger_over_voltage_fault();
+		charger_emg_fault();//추가
+		charger_over_voltage_fault();//추가
+		//charger_under_voltage_fault();//추가
 		charger_over_current_fault();
 		//charger_over_temperature_fault();
 		charger_over_temperature_under_voltage_fault();
@@ -4792,12 +4908,12 @@ void _APP_CHARGSERV_fault_loop()
 	if(charger_fault_status.Raw != 0)
 	{
 		_APP_CHARGSERV_fault_set();
-
+		
 		if((charger_fault_status.AC_OC_ERR == _OFF)
-				&& (charger_fault_status.LEAKAGE_ERR == _OFF)
-				&& (charger_fault_status.CP_ERR == _OFF)
-				&& (charger_fault_status.CSMS_COMM_ERR == _OFF)
-				&& (charger_fault_status.MC_START_ERR == _OFF))
+			&& (charger_fault_status.LEAKAGE_ERR == _OFF)
+			&& (charger_fault_status.CP_ERR == _OFF)
+			&& (charger_fault_status.CSMS_COMM_ERR == _OFF)
+			&& (charger_fault_status.MC_START_ERR == _OFF))
 		{
 			_APP_CHARGSERV_device_stop(0);
 		}
@@ -4805,6 +4921,7 @@ void _APP_CHARGSERV_fault_loop()
 		{
 			_APP_CHARGSERV_device_stop(1);
 		}
+		
 	}
 
 	if(charger_fault_status.Raw == 0/*fault status bits is reset*/)
@@ -4973,6 +5090,7 @@ void _APP_CHARGSERV_startup()
 	_LIB_USERDELAY_set(&gTimeout_ac_oc_fault,1000000);
 	_LIB_USERDELAY_set(&gTimeout_ac_oc_fast_fault,10000);
 	_LIB_USERDELAY_set(&gTimeout_ac_ov_fault,5000);
+	_LIB_USERDELAY_set(&gTimeout_ac_lv_fault,5000);
 	_LIB_USERDELAY_set(&gTimeout_ac_uv_set_fault,30000);
 	_LIB_USERDELAY_set(&gTimeout_ac_uv_clr_fault,5000);
 	_LIB_USERDELAY_set(&gDelay_cp_fault,1000);
