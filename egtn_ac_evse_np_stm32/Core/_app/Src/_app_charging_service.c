@@ -960,7 +960,7 @@ uint8_t charger_set_modecfg()
 		Charger.default_start_mode = 1;
 	}
 
-	if(CHARGSERV_READ_RESTART_FULLDETECT_ACTIVATION)
+	if(CHARGSERV_READ_RESTART_FULLDETECT_ACTIVATION) //DIPSW 1이 ON시
 	{
 		_LIB_LOGGING_printf("Option __ RESTART_FULLDETECT_ACTIVATION : Disable \r\n");
 		Charger.restart_fulldetect_act = 1;
@@ -968,7 +968,7 @@ uint8_t charger_set_modecfg()
 
 	charger_set_mode(mode_temp);
 
-	if(CHARGSERV_AUTOSTART_MODE)
+	if(CHARGSERV_AUTOSTART_MODE) //I_TEST가 ON시
 	{
 		_LIB_LOGGING_printf("mode : Auto Start Mode!! \r\n");
 		Charger.autostartmode_flag = 1;
@@ -1584,7 +1584,6 @@ void _APP_CHARGSERV_state_machine()
 		break;
 
 		case Finish :
-
 
 			if((1 == Charger.reg.finish_ok) &&
 			   (1 == Charger.reg.display_cyclefinish))
@@ -2260,7 +2259,7 @@ void charger_cp_state_control()
 
 				if(_TRUE == _APP_CHARGSERV_complete_duty_ondelay())
 				{
-					_MW_CP_set_pwm_duty(_MW_CP_cal_ampe_to_duty(_APP_CHARGSERV_get_active_Ampe()));
+					_MW_CP_set_pwm_duty(_MW_CP_cal_ampe_to_duty(_APP_CHARGSERV_get_active_Ampe())); //전류값에 따라서 pwm duty 설정
 					_APP_CHARGSERV_connect_ok();
 					Charger.full_wake_up_seq_count = 0;
 					Charger.forcestop_wake_up_seq_count = 0;
@@ -2269,8 +2268,8 @@ void charger_cp_state_control()
 					Charger.stable_full_detect = 0;
 					//Todo
 					//calculate use active Energy start
-					charger_set_startpoint_energy(Charger.current_Active_Energy);
-					Charger_reset_use_energy();
+					charger_set_startpoint_energy(Charger.current_Active_Energy); //충전 시작 부분 유효전력 저장
+					Charger_reset_use_energy(); //초기화
 				}
 			}
 		break;
@@ -4915,11 +4914,11 @@ void _APP_CHARGSERV_fault_loop()
 			&& (charger_fault_status.CSMS_COMM_ERR == _OFF)
 			&& (charger_fault_status.MC_START_ERR == _OFF))
 		{
-			_APP_CHARGSERV_device_stop(0);
+			_APP_CHARGSERV_device_stop(0); //MC_relay fast stop
 		}
 		else
 		{
-			_APP_CHARGSERV_device_stop(1);
+			_APP_CHARGSERV_device_stop(1); //MC_relay stop
 		}
 		
 	}
@@ -5206,9 +5205,9 @@ void _APP_CHARGSERV_process(void)
 
 	_LIB_USERDELAY_start(&gDelay_chargserv_periodic_loop_time, DELAY_RENEW_OFF);
 
-	if(mode_config == mode)
+	if(mode_config == mode) //설정 모드
 	{
-		return;
+		return; //프로세스 종료
 	}
 
     if(_LIB_USERDELAY_isfired(&gDelay_chargserv_periodic_loop_time))

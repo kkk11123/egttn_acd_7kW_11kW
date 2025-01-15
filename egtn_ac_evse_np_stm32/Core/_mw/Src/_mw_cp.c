@@ -674,11 +674,12 @@ uint8_t _MW_CP_calculate_adc()
 	{
 		if((_TRUE == cp_section_h_complete_adc) && (_TRUE == cp_section_l_complete_adc))
 		{
-			temp_CP_H_ave = (int32_t)CP.H.ave_ADC;
-			temp_CP_H_cal = temp_CP_H_ave - CP_INPUT_LEVEL_CENTER_ADC_VALUE;
+			temp_CP_H_ave = (int32_t)CP.H.ave_ADC; //상단 섹션 CP 전압 평균 8비트 -> 32비트로 변환
+			temp_CP_H_cal = temp_CP_H_ave - CP_INPUT_LEVEL_CENTER_ADC_VALUE; //ADC로 변환된 CP의 중간값: 2110
+			//신호의 변동값(Deviation) 또는 오프셋(Offset)을 계산하기 위함
 
-			CP.H.val_Volt = CP_ADC_Resolution * ((double)temp_CP_H_cal);
-			CP.H.ave_Volt = CP.H.val_Volt;
+			CP.H.val_Volt = CP_ADC_Resolution * ((double)temp_CP_H_cal); //분해능 * 상단 섹션 오프셋
+			CP.H.ave_Volt = CP.H.val_Volt; 
 
 			//_LIB_LOGGING_printf("H : %d\r\n", (uint16_t)(CP.H.ave_Volt * 100));
 
@@ -688,8 +689,8 @@ uint8_t _MW_CP_calculate_adc()
 			CP.L.val_Volt = CP_ADC_Resolution * ((double)temp_CP_L_cal);
 			CP.L.ave_Volt = CP.L.val_Volt;
 
-			CP_reset_complete_ADC(CP_SECTION_H);
-			CP_reset_complete_ADC(CP_SECTION_L);
+			CP_reset_complete_ADC(CP_SECTION_H); //초기화
+			CP_reset_complete_ADC(CP_SECTION_L); //초기화
 
 			return _TRUE;
 		}
@@ -715,28 +716,28 @@ uint8_t _MW_CP_calculate_adc()
 uint8_t _MW_CP_calculate_state()
 {
 	double temp_pwm_duty = _MW_CP_get_pwm_duty();
-	double temp_h_final_volt = _MW_CP_get_h_final_voltage();
+	double temp_h_final_volt = _MW_CP_get_h_final_voltage(); //CP.H.ave_Volt;
 #if ((CP_N_VOLTAGE_CHECK)==1)
 #if 0
 	double temp_l_final_volt = _MW_CP_get_l_final_voltage();
 #endif
 #endif
 
-	_LIB_DEBOUNCECHECK_shift(CP.DebounceCheckBuf, CP_ADC_DEBOUNCECHECKBUF_LENGTH);
+	_LIB_DEBOUNCECHECK_shift(CP.DebounceCheckBuf, CP_ADC_DEBOUNCECHECKBUF_LENGTH); //디바운스 체크
 
 	if(temp_pwm_duty > 0)
 	{
-		if(temp_h_final_volt >= CP_P12V_MINIMUM)
+		if(temp_h_final_volt >= CP_P12V_MINIMUM) //10.5F
 		{
 			if(temp_pwm_duty != 100)	_LIB_DEBOUNCECHECK_push(CP.DebounceCheckBuf, PWM_12V);
 			else						_LIB_DEBOUNCECHECK_push(CP.DebounceCheckBuf, DC_12V);
 		}
-		else if(temp_h_final_volt >= CP_P9V_MINIMUM)
+		else if(temp_h_final_volt >= CP_P9V_MINIMUM) //7.5F
 		{
 			if(temp_pwm_duty != 100)	_LIB_DEBOUNCECHECK_push(CP.DebounceCheckBuf, PWM_9V);
 			else						_LIB_DEBOUNCECHECK_push(CP.DebounceCheckBuf, DC_9V);
 		}
-		else if(temp_h_final_volt >= CP_P6V_MINIMUM)
+		else if(temp_h_final_volt >= CP_P6V_MINIMUM) //4.5F
 		{
 			if(temp_pwm_duty != 100)	_LIB_DEBOUNCECHECK_push(CP.DebounceCheckBuf, PWM_6V);
 			else						_LIB_DEBOUNCECHECK_push(CP.DebounceCheckBuf, DC_6V);
@@ -760,7 +761,7 @@ uint8_t _MW_CP_calculate_state()
 
 	if(_TRUE == _LIB_DEBOUNCECHECK_compare(CP.DebounceCheckBuf, CP_ADC_DEBOUNCECHECKBUF_LENGTH, 0))
 	{
-		CP.State = CP.DebounceCheckBuf[CP_ADC_VALUE_INDEX];
+		CP.State = CP.DebounceCheckBuf[CP_ADC_VALUE_INDEX]; //CP 상태 설정
 #if ((__CP_DEBUG__)==1)
 		_MW_CP_print_cp_state();
 #endif
