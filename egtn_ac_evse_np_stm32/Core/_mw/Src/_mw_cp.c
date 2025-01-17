@@ -402,10 +402,10 @@ uint16_t _MW_CP_cal_ampe_to_duty(uint16_t Ampe)
 	/* 6A ~ 51A */
 	if((temp_Ampe > 6) && (temp_Ampe <= 51))
 	{
-		temp_Duty = temp_Ampe / 0.6F;
+		temp_Duty = temp_Ampe / 0.6F; //11.66 ~ 85
 	}
 	/* 51A ~ 80A */
-	else if((temp_Ampe > 51) && (temp_Ampe <= 80))
+	else if((temp_Ampe > 51) && (temp_Ampe <= 80)) //0.79 ~ 1.22
 	{
 		temp_Duty = ( temp_Ampe / 2.5F + 64.0F );
 	}

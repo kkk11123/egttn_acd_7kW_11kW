@@ -697,7 +697,7 @@ uint8_t _APP_CHARGSERV_connect_timeout()
 	return _FALSE;
 }
 
-//충전해도 괜찮다는 플래그 설정
+//충전 완료 플래그 설정
 uint8_t _APP_CHARGSERV_charging_ok()
 {
 	eCharger_State stemp = _APP_CHARGSERV_get_current_state();
@@ -960,7 +960,7 @@ uint8_t charger_set_modecfg()
 		Charger.default_start_mode = 1;
 	}
 
-	if(CHARGSERV_READ_RESTART_FULLDETECT_ACTIVATION) //DIPSW 1이 ON시
+	if(CHARGSERV_READ_RESTART_FULLDETECT_ACTIVATION) //DIPSW 1이 OFF시
 	{
 		_LIB_LOGGING_printf("Option __ RESTART_FULLDETECT_ACTIVATION : Disable \r\n");
 		Charger.restart_fulldetect_act = 1;
@@ -1261,7 +1261,7 @@ void charger_msg_clear(e__MSGQUEUE_DIR dir, uint16_t value)
 }
 #endif
 
-uint8_t charger_is_load_detect_flug()
+uint8_t charger_is_load_detect_flug() //Irms >= 20ms
 {
 	if(Charger.current_I_rms >= CHARGSERV_FLUG_LOAD_DETECT_VALUE)
 	{
@@ -1392,7 +1392,7 @@ uint32_t charger_calc_won(double unit_price)
 	temp = Charger.use_energy;
 	db_temp = ((double)temp) / 100;
 
-	won = db_temp * unit_price;
+	won = db_temp * unit_price; //(에너지/100) * 1kW당 요금
 	gu32_won = (uint32_t)(round(won));
 
 	Charger.use_won = gu32_won;
@@ -1741,7 +1741,7 @@ void charger_indiled_display()
 			else
 			{
 
-				if(1 == Charger.forcestop_wake_up_seq_count_limit_detect)
+				if(1 == Charger.forcestop_wake_up_seq_count_limit_detect) //wake_up_seq_count_limit에 도달하면
 				{
 					if((indiledtickcount == 1) || (indiledtickcount == 2) || (indiledtickcount == 3))
 					{
@@ -2294,7 +2294,7 @@ void charger_cp_state_control()
 
 			if((cp_state == Err_PWMH) || (cp_state == Err_PWML) || (cp_state == Err_DC))
 			{
-				if(Charger.chargstate > Charg_Standby)//if(is_charging_sign == 1)
+				if(Charger.chargstate > Charg_Standby)//if(is_charging_sign == 1) //start, stable, full
 				{
 					Charger.chargstate = Charg_Standby;//is_charging_sign = 0;
 #if ((__CHARGSERV_DEBUG__)==1)
@@ -2313,7 +2313,7 @@ void charger_cp_state_control()
 				{
 					case 0 :
 						charger_wake_up_seq_enable();
-						charger_wake_up_seq_start(99);
+						charger_wake_up_seq_start(99); //wake_up
 						Charger.leakage_instop_step = 1;
 #if ((__CHARGSERV_DEBUG__)==1)
 						_LIB_LOGGING_printf("#### CHARGSERV : Leakage_instop_wake_up_seq_start #### \r\n");
@@ -2361,10 +2361,10 @@ void charger_cp_state_control()
 
 			if(cp_state == PWM_6V)
 			{
-
+					//전류값이 최소 값 40A 이상일 때
 				if((0 == Charger.forcestop_wake_up_seq_flag) && (Charger.current_I_rms > CHARGSERV_AMPE_MIN_VALUE))
 				{
-					_LIB_USERDELAY_start(&gDelay_forcestop_wake_up_seq_flag_set, DELAY_RENEW_OFF);
+					_LIB_USERDELAY_start(&gDelay_forcestop_wake_up_seq_flag_set, DELAY_RENEW_OFF); //3초
 
 					if(_LIB_USERDELAY_isfired(&gDelay_forcestop_wake_up_seq_flag_set))
 					{
@@ -2398,9 +2398,9 @@ void charger_cp_state_control()
 					break;
 					case Charg_Start :
 						//if(Charger.current_I_rms > CHARGSERV_AMPE_MAX_HALF_VALUE)
-						if(Charger.current_I_rms > (Charger.active_Ampe * 500)) //활성전류 * 500 보다 현재 전류 값이 더 크면 안정 상태로 간주
+						if(Charger.current_I_rms > (Charger.active_Ampe * 500)) //기준 전류 절반 이상으로 90분 지속했을 경우
 						{
-							_LIB_USERDELAY_start(&gTimeout_charging_stable, DELAY_RENEW_OFF);
+							_LIB_USERDELAY_start(&gTimeout_charging_stable, DELAY_RENEW_OFF); //90분
 
 							if(_LIB_USERDELAY_isfired(&gTimeout_charging_stable))
 							{
@@ -2458,23 +2458,23 @@ void charger_cp_state_control()
 
 						//230711 PES PWM 9V_ForceStop Wakeup Seq count
 
-						if(0 == Charger.forcestop_wake_up_seq_flag)
+						if(0 == Charger.forcestop_wake_up_seq_flag)//충전 중이면 1
 						{
-							wake_up_seq_count_limit = 1;
+							wake_up_seq_count_limit = 1; // 커플러와 차량이 연결되고도 일정 시간 경과 후에도 충전이 시작되지 않을 경우
 						}
 						else
 						{
-							wake_up_seq_count_limit = 3;
+							wake_up_seq_count_limit = 3; //안정적 충전 상태가 아닌 상황에서 충전 중에 일시 정지 된 경우
 						}
 
-						if(Charger.forcestop_wake_up_seq_count >= wake_up_seq_count_limit)
+						if(Charger.forcestop_wake_up_seq_count >= wake_up_seq_count_limit)//wake_up 시퀀스가 특정 횟수 초과 시
 						{
 							_LIB_USERDELAY_stop(&gTimeout_forcestop_wake_up_seq_is_finish);
 
 							if(0 == Charger.forcestop_wake_up_seq_count_limit_detect)
 							{
 								charger_wake_up_seq_forced_stop();
-								Charger.forcestop_wake_up_seq_count_limit_detect = 1;
+								Charger.forcestop_wake_up_seq_count_limit_detect = 1; //특정 횟수 초과 감지
 #if ((__CHARGSERV_DEBUG__)==1)
 								_LIB_LOGGING_printf("#### CHARGSERV : chargstate : ForceStop -> count limit(PWM9V) #### \r\n");
 #endif
@@ -2485,17 +2485,17 @@ void charger_cp_state_control()
 						{
 							if(0 == charger_get_wake_up_seq_flag())
 							{
-								if(0 == Charger.forcestop_wake_up_seq_flag)
+								if(0 == Charger.forcestop_wake_up_seq_flag) //40A이상일 때 1
 								{
-									charger_wake_up_seq_enable();
-									charger_wake_up_seq_start(0);
+									charger_wake_up_seq_enable(); //wake_up_seq_flag = 1
+									charger_wake_up_seq_start(0); //wake_up_seq 30초 시작
 								}
 								else
 								{
-									if(0 == Charger.restart_fulldetect_act)
+									if(0 == Charger.restart_fulldetect_act)//DIPSW 1이 ON -> 충전재시작, 완충감지 기능 설정 해제
 									{
 										charger_wake_up_seq_enable();
-										charger_wake_up_seq_start(Charger.forcestop_wake_up_seq_count + 1);
+										charger_wake_up_seq_start(Charger.forcestop_wake_up_seq_count + 1); //wake_up_seq 120초, 600초, 1800초
 									}
 								}
 							}
@@ -2503,22 +2503,22 @@ void charger_cp_state_control()
 						}
 
 #if 1					//240626 PES : always wake up seq count
-						if(_TRUE == charger_wake_up_seq_is_finish())
+						if(_TRUE == charger_wake_up_seq_is_finish()) //wake_up_seq 완료
 						{
-							_LIB_USERDELAY_start(&gTimeout_forcestop_wake_up_seq_is_finish, DELAY_RENEW_OFF);
+							_LIB_USERDELAY_start(&gTimeout_forcestop_wake_up_seq_is_finish, DELAY_RENEW_OFF); //25초
 #if ((__CHARGSERV_DEBUG__)==1)
 							_LIB_LOGGING_printf("#### CHARGSERV : forcestop_wake_up_seq_ is finish start #### \r\n");
 #endif
 						}
 #endif
 
-						if(_LIB_USERDELAY_isfired(&gTimeout_forcestop_wake_up_seq_is_finish))
+						if(_LIB_USERDELAY_isfired(&gTimeout_forcestop_wake_up_seq_is_finish)) //25초 경과 시
 						{
 							_LIB_USERDELAY_stop(&gTimeout_forcestop_wake_up_seq_is_finish);
 
 #if ((_DO_NOT_FAULT_LEAKAGE_)==1)
 							//if((3 != Charger.leakage_instop_step) && (3 != Charger.oc_instop_step))
-							if((3 != Charger.leakage_instop_step))							
+							if((3 != Charger.leakage_instop_step)) //누설전류 감지가 되지 않았다면						
 							{
 								Charger.forcestop_wake_up_seq_count++;
 							}
@@ -2539,8 +2539,8 @@ void charger_cp_state_control()
 #endif
 					break;
 
-					case Charg_Stable :
-
+					case Charg_Stable : //충전 상태가 안정적일 경우
+						
 						if(Charger.full_wake_up_seq_count >= CHARGSERV_FULL_WAKE_UP_SEQ_COUNT)
 						{
 							_LIB_USERDELAY_stop(&gTimeout_full_wake_up_seq_is_finish);
@@ -2559,17 +2559,17 @@ void charger_cp_state_control()
 						{
 							if(0 == charger_get_wake_up_seq_flag())
 							{
-								if(0 == Charger.restart_fulldetect_act)
+								if(0 == Charger.restart_fulldetect_act) //충전 재시작 및 완충 감지 기능 설정 시
 								{
 									charger_wake_up_seq_enable();
-									charger_wake_up_seq_start(Charger.full_wake_up_seq_count + 1);
+									charger_wake_up_seq_start(Charger.full_wake_up_seq_count + 1); //120초 2번
 								}
 							}
 						}
 
 						if(_TRUE == charger_wake_up_seq_is_finish())
 						{
-							_LIB_USERDELAY_start(&gTimeout_full_wake_up_seq_is_finish, DELAY_RENEW_OFF);
+							_LIB_USERDELAY_start(&gTimeout_full_wake_up_seq_is_finish, DELAY_RENEW_OFF); //30초
 							Charger.stable_changed_flag = 1;
 #if ((__CHARGSERV_DEBUG__)==1)
 							_LIB_LOGGING_printf("#### CHARGSERV : full_wake_up_seq_ is finish start #### \r\n");
@@ -2582,7 +2582,7 @@ void charger_cp_state_control()
 
 #if ((_DO_NOT_FAULT_LEAKAGE_)==1)
 							//if((3 != Charger.leakage_instop_step) && (3 != Charger.oc_instop_step))
-							if((3 != Charger.leakage_instop_step))							
+							if((3 != Charger.leakage_instop_step))	 //누설전류가 감지되지 않았을 경우						
 							{
 								Charger.full_wake_up_seq_count++;
 							}
@@ -2596,7 +2596,7 @@ void charger_cp_state_control()
 					break;
 
 					case Charg_Full :
-						_LIB_USERDELAY_start(&gTimeout_auto_finish, DELAY_RENEW_OFF);
+						_LIB_USERDELAY_start(&gTimeout_auto_finish, DELAY_RENEW_OFF); //10초
 
 						if(_LIB_USERDELAY_isfired(&gTimeout_auto_finish))
 						{
@@ -2618,12 +2618,12 @@ void charger_cp_state_control()
 			//In '_FORCE_ACTIVING_MODE_' mode, the following functions must be deactivated to maintain 'Charging' state.
 			if(cp_state == PWM_12V)
 			{
-				charger_wake_up_seq_forced_stop();
+				charger_wake_up_seq_forced_stop(); // pwm 12V -> DC 12V
 				_LIB_USERDELAY_stop(&gTimeout_auto_finish);
 
 				//if(_MW_CP_get_mc_relay_state() == _ON)
 
-				if(Charg_Start >= Charger.chargstate)
+				if(Charg_Start >= Charger.chargstate) //chargstate = standby일 경우만 참
 				{
 #if ((__CHARGSERV_DEBUG__)==1)
 						if(0 == Charger.reg.charging_compulsionunplug)
@@ -2631,8 +2631,8 @@ void charger_cp_state_control()
 							_LIB_LOGGING_printf("#### CHARGSERV : compulsion unplug #### \r\n");
 						}
 #endif
-
-						_APP_CHARGSERV_set_charging_to_unplug();
+						//pwm 12V 상태인데 충전건을 뽑으면 mc_relay_off_fast 동작
+						_APP_CHARGSERV_set_charging_to_unplug();//Charger.reg.charging_compulsionunplug = 1;
 						if(Charger.reg.charging_continuous == 0)
 						{
 							//fast mc off
@@ -3129,7 +3129,7 @@ void charger_common_control()
 		case AutoReady :
 			if((DC_9V == cp_state) || (DC_6V == cp_state))
 			{
-				_APP_CHARGSERV_autoready_connected();
+				_APP_CHARGSERV_autoready_connected(); //autoready -> connect
 			}
 		break;
 		case UserCheck :
@@ -3938,7 +3938,7 @@ uint8_t _APP_CHARGSERV_set_active_Ampe(uint8_t mode)
 	return ret_value;
 }
 #else
-uint8_t _APP_CHARGSERV_set_active_Ampe(uint8_t step)
+uint8_t _APP_CHARGSERV_set_active_Ampe(uint8_t step) //기준 전류값 설정
 {
 	uint8_t ret_value = _FALSE; //step = 2
 	static uint8_t ampe_bak = 0xff;
@@ -5150,7 +5150,7 @@ void _APP_CHARGSERV_startup()
 
 void _APP_CHARGSERV_init()
 {
-	if(_TRUE == _APP_RFID_is_init_ok())
+	if(_TRUE == _APP_RFID_is_init_ok()) //카드 리더기 활성화
 	{
 		Charger.init_flag.rfid_init_ok = 1;
 	}
@@ -5160,7 +5160,7 @@ void _APP_CHARGSERV_init()
 	//230106 PES : non display. always on
 	Charger.reg.display_cyclefinish = 1;
 
-	_APP_CHARGSERV_init_ok();
+	_APP_CHARGSERV_init_ok(); //Charger.reg.init_complete = 1;
 }
 
 uint8_t _APP_CHARGSERV_deinit()

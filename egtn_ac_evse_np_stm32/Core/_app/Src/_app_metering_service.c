@@ -116,7 +116,7 @@ void _APP_CHARGSERV_check_Irms_loop()
 
 				I_rms = sqrt(per_t_total_intergral_current);
 
-				I_rms_U32 = (uint32_t)(I_rms * 1000);
+				I_rms_U32 = (uint32_t)(I_rms * 1000);//mA 단위로 변환
 
 				I_rms_U32_LPF = _LIB_LPF_calc(&Irms_calc, I_rms_U32);
 
