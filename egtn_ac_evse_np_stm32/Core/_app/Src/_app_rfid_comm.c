@@ -126,7 +126,7 @@ void rfid_frame_search()
 	}
 }
 
-void rfid_read_card_id()
+void rfid_read_card_id() ////rfid_rx_buf[3]~[6]에 카드 ID 16자리 저장
 {
 	uint16_t ln;
 
@@ -149,7 +149,7 @@ void rfid_read_card_id()
 	_LIB_U8QUEUE_inc_pointer(&rfid_queue); // ETX
 }
 
-void rfid_reader_terminate()
+void rfid_reader_terminate()//cmd가 0xE3일 때 태그 종료 플래그 1
 {
 	uint16_t ln;
 	ln = _LIB_U8QUEUE_get_word(&rfid_queue);
@@ -167,7 +167,7 @@ void rfid_reader_terminate()
 	_LIB_U8QUEUE_inc_pointer(&rfid_queue); // ETX
 }
 
-void rfid_reader_version()
+void rfid_reader_version()//rfid_rx_buf[1]~[2]에 버전 값 저장
 {
 	uint8_t ln;
 
@@ -189,7 +189,7 @@ void rfid_reader_version()
 	_LIB_U8QUEUE_inc_pointer(&rfid_queue); // ETX
 }
 
-void rfid_reader_status()
+void rfid_reader_status() //rfid_rx_buf[0]에 동작 상태 값 저장
 {
 	uint8_t ln;
 
@@ -203,7 +203,7 @@ void rfid_reader_status()
 
 
 
-void _APP_RFID_push_ringbuffer(uint8_t comdt)
+void _APP_RFID_push_ringbuffer(uint8_t comdt) //data를 rfid_queue에 넣는 함수
 {
 	if(rfid_queue.blank_check > 50)	{
 		_LIB_U8QUEUE_comFlush(&rfid_queue);
@@ -215,7 +215,7 @@ void _APP_RFID_push_ringbuffer(uint8_t comdt)
 	//rfid_frame_search();
 }
 
-void _APP_RFID_req(uint8_t cmd)
+void _APP_RFID_req(uint8_t cmd) //slave에게 Request 함수
 {
 	uint16_t crc_data = 0;
 
@@ -231,7 +231,7 @@ void _APP_RFID_req(uint8_t cmd)
 	rfid_app.rfid_tx_buf[rfid_app.rfid_tx_cnt++] = 0x00;
 	rfid_app.rfid_tx_buf[rfid_app.rfid_tx_cnt++] = 0x00;
 
-	crc_data = buypass_crc16(&rfid_app.rfid_tx_buf[1], rfid_app.rfid_tx_cnt-1);
+	crc_data = buypass_crc16(&rfid_app.rfid_tx_buf[1], rfid_app.rfid_tx_cnt-1); //Sequence Number를 가지고 CRC 계산
 	rfid_app.rfid_tx_buf[rfid_app.rfid_tx_cnt++] = crc_data >> 8;
 	rfid_app.rfid_tx_buf[rfid_app.rfid_tx_cnt++] = crc_data;
 
@@ -240,7 +240,7 @@ void _APP_RFID_req(uint8_t cmd)
 	rfid_comPut(rfid_app.rfid_tx_buf, rfid_app.rfid_tx_cnt);
 }
 
-uint8_t _APP_RFID_save_card_num(uint16_t* card_num)
+uint8_t _APP_RFID_save_card_num(uint16_t* card_num) //card_num[0] ~ [3]에 카드 번호 저장
 {
 	uint8_t cnt = 0;
 
@@ -266,7 +266,7 @@ uint8_t _APP_RFID_get_stus()
 	return (uint8_t)rfid_app.rfid_rx_buf[RFID_STATUS];
 }
 
-uint32_t _APP_RFID_get_version()
+uint32_t _APP_RFID_get_version() //버전을 4바이트로 한번에 가져오기
 {
 	uint32_t card_reader_version = 0x0;
 	card_reader_version = rfid_app.rfid_rx_buf[RFID_H_VERSION];
@@ -288,7 +288,7 @@ eRFID_State rfid_get_current_state()
 }
 
 
-void rfid_main_processing()
+void rfid_main_processing() //slave -> master
 {
 	uint8_t cmd;
 	eRFID_State state = rfid_get_current_state();
@@ -321,18 +321,18 @@ void rfid_main_processing()
 
 	cmd = _LIB_U8QUEUE_get_byte(&rfid_queue);
 
-	switch(cmd){
+	switch(cmd){ //명령에 따라서
 		case 0xd6:
-			rfid_reader_terminate();
+			rfid_reader_terminate(); //rfid_app.reg.tag_terminate = 1, 동작 중지 플래그
 			break;
 		case 0xd7:
-			rfid_reader_version();
+			rfid_reader_version(); //rfid_rx_buf[1]~[2]에 버전 값 저장
 			break;
 		case 0xd8:
-			rfid_reader_status();
+			rfid_reader_status(); //rfid_rx_buf[0]에 동작 상태 값 저장
 			break;
 		case 0xea:
-			rfid_read_card_id();
+			rfid_read_card_id(); //rfid_rx_buf[3]~[6]에 버전 값 저장
 #if 1
 			//test
 			_LIB_LOGGING_printf("CARD ID : %04x %04x %04x %04x \r\n",
@@ -341,12 +341,12 @@ void rfid_main_processing()
 										rfid_app.rfid_rx_buf[RFID_CARD_ID_03],
 										rfid_app.rfid_rx_buf[RFID_CARD_ID_04]);
 #endif
-			if(state == RFID_Start)
+			if(state == RFID_Start) //RFID 시작일 경우
 			{
-				if(_ON == _APP_RFID_save_card_num(rfid_app.cardnum))
+				if(_ON == _APP_RFID_save_card_num(rfid_app.cardnum)) //rfid_app.cardnum[0] ~ [3]에 카드번호 16자리 저장(2byte씩)
 				{
 					//rfid_write_reg_bit(RFIDAPP_REG_TAG_OK, _ON);
-					rfid_app.reg.tag_ok = 1;
+					rfid_app.reg.tag_ok = 1; //저장 완료 시 tag_ok
 					//rfid_write_reg_bit(RFIDAPP_REG_TAG_ERROR, _OFF);
 					rfid_app.reg.tag_error = 0;
 				}
@@ -371,10 +371,10 @@ void rfid_main_processing()
 
 void _APP_RFID_located_in_timer()
 {
-	if(rfid_app.found_frame)
+	if(rfid_app.found_frame) //유효 프레임 찾으면
 	{
 
-		_LIB_USERDELAY_stop(&gTimeout_rfid_comm_fault);
+		_LIB_USERDELAY_stop(&gTimeout_rfid_comm_fault); //오류 타이머 정지
 
 		rfid_queue.blank_check = 0;
 		rfid_app.interval_counter++;
@@ -396,7 +396,7 @@ void _APP_RFID_state_machine()
 	switch(state)
 	{
 		case RFID_Init :
-			if(1 == rfid_app.reg.init_ok)
+			if(1 == rfid_app.reg.init_ok) //start_up 함수에서 자동으로 1 -> 딜레이 타이머 set 완료
 			{
 				//rfid_app.reg.init_ok = 0;
 				rfid_set_state(RFID_Standby);
@@ -405,10 +405,10 @@ void _APP_RFID_state_machine()
 
 		case RFID_Standby :
 			//if(_ON == rfid_read_reg_bit(RFIDAPP_REG_TAG_START))
-			if(1 == rfid_app.reg.tag_start)
+			if(1 == rfid_app.reg.tag_start) //set_start_tagging_mode(0)이면 1
 			{
 				rfid_app.reg.tag_start = 0;
-				_APP_RFID_req(0xEA);
+				_APP_RFID_req(0xEA); //카드 읽기 무한 대기 -> 리더기 무한 활성화
 				rfid_set_state(RFID_Start);
 				rfid_app.reg.tag_ok = 0;
 				printf("rfid_tagging start\r\n");
@@ -417,7 +417,7 @@ void _APP_RFID_state_machine()
 
 		case RFID_Start :
 			//if(_ON == rfid_read_reg_bit(RFIDAPP_REG_TAG_OK))
-			if(1 == rfid_app.reg.tag_ok)
+			if(1 == rfid_app.reg.tag_ok) //rfid_app.cardnum[0] ~ [3]에 카드번호 16자리 저장(2byte씩) 완료 시
 			{
 				rfid_app.reg.tag_ok = 0;
 				rfid_app.reg.data_standby = 1;
@@ -433,7 +433,7 @@ void _APP_RFID_state_machine()
 		break;
 
 		case RFID_Tagging :
-			if(1 == rfid_app.reg.read_data)
+			if(1 == rfid_app.reg.read_data) //rfid_app.cardnum[0]~[3]에 2byte씩 저장되어 있던 카드 번호를 cardnum[0] ~ [7]에 1byte씩 저장 완료 시
 			{
 				rfid_app.reg.read_data = 0;
 				rfid_set_state(RFID_Finish);
@@ -446,20 +446,20 @@ void _APP_RFID_state_machine()
 			}
 		break;
 		case RFID_Terminate :
-			if(1 == rfid_app.reg.tag_terminate)
+			if(1 == rfid_app.reg.tag_terminate) //cmd가 0XE3일 때 태그 종료
 			{
 				printf("#### rfid_terminate_ok ####\r\n");
 				rfid_app.reg.tag_terminate = 0;
 				rfid_set_state(RFID_Finish);
 			}
 		break;
-		case RFID_Finish :
+		case RFID_Finish : //RFID 종료 상태에서 2초 뒤 다시 standby 상태로 변환
 			if(_LIB_USERDELAY_start(&gDelay_rfid_finish, DELAY_RENEW_OFF))
 			{
 				printf("#### rfid_finish_delay_start ####\r\n");
 			}
 
-			if(_LIB_USERDELAY_isfired(&gDelay_rfid_finish))
+			if(_LIB_USERDELAY_isfired(&gDelay_rfid_finish)) //2초
 			{
 				_LIB_USERDELAY_stop(&gDelay_rfid_finish);
 				printf("#### rfid_finish_delay_ok ####\r\n");
@@ -478,30 +478,30 @@ void _APP_RFID_set_start_tagging(uint8_t mode)
 {
 	eRFID_State mstate = rfid_get_current_state();
 
-	if(0 == mode)
+	if(0 == mode) //mode가 0이면 리더기 활성화
 	{
 		rfid_app.reg.tag_error = 0;
 		rfid_app.reg.tag_timeout = 0;
 		rfid_app.reg.tag_start = 1;
 		printf("#### rfid_set start #### \r\n");
 	}
-	else if(1 == mode)
+	else if(1 == mode) //mode가 1이면 리더기 동작 중지
 	{
 		if(RFID_Start == mstate)
 		{
 			printf("#### rfid_terminate start #### \r\n");
 			rfid_app.reg.tag_start = 0;
-			_APP_RFID_req(0xD6);
+			_APP_RFID_req(0xD6); //RFID START인데 cmd가 0xD6면 동작 중지
 			rfid_set_state(RFID_Terminate);
 		}
 	}
 }
 
-uint8_t _APP_RFID_get_tagging_result()
+uint8_t _APP_RFID_get_tagging_result() //태깅 결과 반환
 {
 	uint8_t ret_value = _CONTINUE;
 
-	if(1 == rfid_app.reg.data_standby)
+	if(1 == rfid_app.reg.data_standby) //rfid_app.cardnum[0] ~ [3]에 카드번호 16자리 저장(2byte씩) 완료 시
 	{
 		ret_value = _TRUE;
 	}
@@ -530,8 +530,8 @@ void _APP_RFID_get_card_number(char * cardnum)
 	rfid_app.reg.read_data = 1;
 }
 #else
-void _APP_RFID_get_card_number(uint8_t * cardnum)
-{
+void _APP_RFID_get_card_number(uint8_t * cardnum) //2byte씩 저장되어있는 카드 번호를 1byte로 나눠서 저장
+{												//cardnum[0]~[7]
 	//220517 PES : Todo
 	//get card number function
 
@@ -646,12 +646,12 @@ void _APP_RFID_check_status_loop()
 	if(tick >= 100)
 	{
 		tick = 0;
-		_APP_RFID_req(0xD7);
-		printf("0xD7\r\n");
-		_LIB_USERDELAY_start(&gTimeout_rfid_comm_fault, DELAY_RENEW_OFF); //20초
+		_APP_RFID_req(0xD7); //버전 확인, rfid_app.rfid_rx_buf[1]~[2]에 버전 정보 값 저장
+		//printf("0xD7\r\n");
+		_LIB_USERDELAY_start(&gTimeout_rfid_comm_fault, DELAY_RENEW_OFF); // found_frame시 타이머 정지
 	}
 
-	if(_LIB_USERDELAY_isfired(&gTimeout_rfid_comm_fault))
+	if(_LIB_USERDELAY_isfired(&gTimeout_rfid_comm_fault)) //20초 경과 시
 	{
 		//rfid_comm_fault_set
 		_APP_CHARGSERV_rfid_fault_set();
@@ -665,9 +665,9 @@ void _APP_RFID_check_status_loop()
 
 void _APP_RFID_main()
 {
-	rfid_frame_search();
+	rfid_frame_search(); //유효 프레임 찾기
 
-	_APP_RFID_located_in_timer();
+	_APP_RFID_located_in_timer(); //main_processing 시작
 
 	_APP_RFID_state_machine();
 
