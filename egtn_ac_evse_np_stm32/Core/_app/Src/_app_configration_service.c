@@ -357,7 +357,7 @@ void _APP_CONFIGSERV_ctrl_loop()
 					{
 						if(true == ee24_read(MEM_ADDR_CARDNUM_INDEX_LSB(i), rxtemp, 1, 100))
 						{
-							if(0xFF == rxtemp[0])
+							if(0xFF == rxtemp[0]) //비어 있으면
 							{
 								txtemp[0] = 0x00;
 								txtemp[1] = 0x00;
@@ -366,7 +366,7 @@ void _APP_CONFIGSERV_ctrl_loop()
 								txtemp[4] = 0x00;
 								txtemp[5] = 0x00;
 								txtemp[6] = 0x00;
-								txtemp[7] = (i+1);
+								txtemp[7] = (i+1); //인덱스 번호를 알려주기 위함
 								txtemp[8] = Config.read_card_num[0];
 								txtemp[9] = Config.read_card_num[1];
 								txtemp[10] = Config.read_card_num[2];

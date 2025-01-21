@@ -78,7 +78,7 @@ uint16_t buypass_crc16 (uint8_t *nData, uint8_t length)
     return wCRCWord;
 }
 
-void rfid_frame_search()
+void rfid_frame_search() //slave -> master에게 보내는 데이터 검증
 {
 	uint8_t uch, ucl, bh, bl;
 	uint16_t mclen, crc_data = 0;
@@ -95,7 +95,7 @@ void rfid_frame_search()
 
 	_LIB_U8QUEUE_inc_pointer(&rfid_queue); //STX
 
-	for (uint8_t i=0; i < mclen-4; i++){
+	for (uint8_t i=0; i < mclen-4; i++){ //-4를 한 이유는 crc 16
 		crc_calc[i] = _LIB_U8QUEUE_get_byte(&rfid_queue);
 		//printf("data:0x%02x\r\n",crc_calc[i]);
 	}
@@ -223,7 +223,7 @@ void _APP_RFID_req(uint8_t cmd) //slave에게 Request 함수
 
 	rfid_app.rfid_tx_buf[rfid_app.rfid_tx_cnt++] = RFID_STX;
 	rfid_app.rfid_tx_buf[rfid_app.rfid_tx_cnt++] = RFID_SEQ_REQ;
-	rfid_app.rfid_tx_buf[rfid_app.rfid_tx_cnt++] = RFID_SIDX_H;
+	rfid_app.rfid_tx_buf[rfid_app.rfid_tx_cnt++] = RFID_SIDX_H; //0XB0이여야될 것같은데..
 	rfid_app.rfid_tx_buf[rfid_app.rfid_tx_cnt++] = RFID_SIDX_L;
 	rfid_app.rfid_tx_buf[rfid_app.rfid_tx_cnt++] = RFID_RIDX_H;
 	rfid_app.rfid_tx_buf[rfid_app.rfid_tx_cnt++] = RFID_RIDX_L;
@@ -332,7 +332,7 @@ void rfid_main_processing() //slave -> master
 			rfid_reader_status(); //rfid_rx_buf[0]에 동작 상태 값 저장
 			break;
 		case 0xea:
-			rfid_read_card_id(); //rfid_rx_buf[3]~[6]에 버전 값 저장
+			rfid_read_card_id(); //rfid_rx_buf[3]~[6]에 카드 번호 값 저장
 #if 1
 			//test
 			_LIB_LOGGING_printf("CARD ID : %04x %04x %04x %04x \r\n",
