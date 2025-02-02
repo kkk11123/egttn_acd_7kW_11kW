@@ -13,6 +13,7 @@
 #include <_app_rfid_comm.h>
 #include <_config.h>
 
+
 static gUserDelay gDelay_chargserv_periodic_loop_time;
 static gUserDelay gDelay_setduty;
 static gUserDelay gDelay_wusqtimeout;
@@ -1657,6 +1658,7 @@ void charger_indiled_display()
 	eCharger_State state = _APP_CHARGSERV_get_current_state();
 	CP_StateDef	cp_state = _MW_CP_get_cp_state();
 	static uint8_t indiledtickcount = 0;
+	
 
 	indiledtickcount++;
 
@@ -2275,6 +2277,7 @@ void charger_cp_state_control()
 		break;
 
 		case Charging :
+			int cp_v_check = ((int)_MW_CP_get_h_final_voltage() * 100);
 			//if((_TRUE == _MW_CP_get_mc_relay_state()) && ((cp_state == PWM_12V)))
 
 			charger_calc_use_energy();
@@ -2304,7 +2307,20 @@ void charger_cp_state_control()
 				charger_wake_up_seq_forced_stop();
 				_LIB_USERDELAY_stop(&gTimeout_auto_finish);
 
-				_APP_CHARGSERV_cp_fault_set();
+				//cp 전압 오류 cp 동작오류 구분 로직
+				if(cp_v_check == 0)
+				{
+					//printf("cp_v : %d\r\n", cp_v_check);
+					_APP_CHARGSERV_cp_fault_set(); //cp 동작오류
+				}
+				else
+				{
+					_APP_CHARGSERV_cp_voltage_fault_set(); //cp 전압 오류
+				}
+				
+
+				
+				
 			}
 
 			if(1 == Charger.leakage_instop_flag)
@@ -4462,12 +4478,21 @@ void _APP_CHARGSERV_over_temperature_fault_reset()
 void charger_cp_fault()
 {
 	CP_StateDef	cp_state = _MW_CP_get_cp_state();
+	
 
 	if(_ON == charger_fault_status.CP_ERR)
 	{
 		if(cp_state == DC_12V)
 		{
 			charger_fault_status.CP_ERR = _OFF;
+		}
+	}
+
+	else if(_ON == charger_fault_status.CP_VOLTAGE_ERR)
+	{
+		if(cp_state == DC_12V)
+		{
+			charger_fault_status.CP_VOLTAGE_ERR = _OFF;
 		}
 	}
 }
@@ -4530,6 +4555,16 @@ void _APP_CHARGSERV_leakage_fault_set(uint16_t value)
 void _APP_CHARGSERV_leakage_fault_reset()
 {
 	charger_fault_status.LEAKAGE_ERR = _OFF;
+}
+
+void _APP_CHARGSERV_cp_voltage_fault_set()
+{
+	charger_fault_status.CP_VOLTAGE_ERR = _ON;
+}
+
+void _APP_CHARGSERV_cp_voltage_fault_reset()
+{
+	charger_fault_status.CP_VOLTAGE_ERR = _OFF;
 }
 
 void _APP_CHARGSERV_cp_fault_set()
@@ -4911,6 +4946,7 @@ void _APP_CHARGSERV_fault_loop()
 		if((charger_fault_status.AC_OC_ERR == _OFF)
 			&& (charger_fault_status.LEAKAGE_ERR == _OFF)
 			&& (charger_fault_status.CP_ERR == _OFF)
+			&& (charger_fault_status.CP_VOLTAGE_ERR == _OFF)
 			&& (charger_fault_status.CSMS_COMM_ERR == _OFF)
 			&& (charger_fault_status.MC_START_ERR == _OFF))
 		{

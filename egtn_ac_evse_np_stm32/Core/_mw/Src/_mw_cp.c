@@ -480,9 +480,9 @@ uint8_t _MW_CP_average_adc(uint8_t section, uint16_t adcvalue)
 			{
 				CP.H.sum_ADC += CP.H.val_ADC;
 				CP.H.ave_cnt++;
-				if(CP.H.ave_cnt >= CP_ADC_AVE_BUF_LENGTH)
+				if(CP.H.ave_cnt >= CP_ADC_AVE_BUF_LENGTH) //8개의 데이터 평균값
 				{
-					CP.H.ave_ADC = CP.H.sum_ADC * CP_ADC_AVE_BUF_LENGTH_REVERSE;
+					CP.H.ave_ADC = CP.H.sum_ADC * CP_ADC_AVE_BUF_LENGTH_REVERSE; //cp_H_ 평균값
 
 					CP.H.sum_ADC = 0;
 					CP.H.ave_cnt = 0;
@@ -507,9 +507,9 @@ uint8_t _MW_CP_average_adc(uint8_t section, uint16_t adcvalue)
 			{
 				CP.L.sum_ADC += CP.L.val_ADC;
 				CP.L.ave_cnt++;
-				if(CP.L.ave_cnt >= CP_ADC_AVE_BUF_LENGTH)
+				if(CP.L.ave_cnt >= CP_ADC_AVE_BUF_LENGTH) //8개의 데이터 평균값
 				{
-					CP.L.ave_ADC = CP.L.sum_ADC * CP_ADC_AVE_BUF_LENGTH_REVERSE;
+					CP.L.ave_ADC = CP.L.sum_ADC * CP_ADC_AVE_BUF_LENGTH_REVERSE; //CP_L 평균값
 
 					CP.L.sum_ADC = 0;
 					CP.L.ave_cnt = 0;
