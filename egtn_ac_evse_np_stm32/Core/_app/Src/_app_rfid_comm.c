@@ -23,7 +23,7 @@ static gUserDelay gDelay_rfid_comm_periodic_loop_time;
 static gUserDelay gTimeout_rfid_comm_fault;
 static gUserDelay gDelay_rfid_finish;
 
-static const uint16_t CRC16_BUYPASS_TABLE[] =
+static const uint16_t CRC16_BUYPASS_TABLE[] = //0 ~ 255까지 CRC값 계산 테이블
 {
 	0x0000, 0x8005, 0x800F, 0x000A, 0x801B, 0x001E, 0x0014, 0x8011,
 	0x8033, 0x0036, 0x003C,	0x8039, 0x0028, 0x802D, 0x8027, 0x0022,
