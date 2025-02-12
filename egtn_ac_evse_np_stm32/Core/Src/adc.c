@@ -118,11 +118,11 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
     /**ADC GPIO Configuration
-    PA3     ------> ADC_IN3
-    PA4     ------> ADC_IN4
-    PA5     ------> ADC_IN5
-    PB0     ------> ADC_IN8
-    PB1     ------> ADC_IN9
+    PA3     ------> ADC_IN3 //전압
+    PA4     ------> ADC_IN4 //전류
+    PA5     ------> ADC_IN5 //zct
+    PB0     ------> ADC_IN8 //온도
+    PB1     ------> ADC_IN9 //CP전압
     */
     GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;

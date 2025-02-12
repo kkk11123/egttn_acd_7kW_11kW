@@ -13,7 +13,7 @@
 #include "dma.h"
 #include "tim.h"
 
-#define __NTC_DEBUG__			0
+#define __NTC_DEBUG__			1
 
 #define NTC_TEMP_ADC_LENGTH		10
 

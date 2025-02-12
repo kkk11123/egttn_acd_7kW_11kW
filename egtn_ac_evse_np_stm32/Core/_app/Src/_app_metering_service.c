@@ -7,6 +7,7 @@
 
 #include <_app_metering_service.h>
 #include <_config.h>
+#include <_mw_ntc.h>
 
 #if ((_VRMS_IRMS_CALC_LPF_FILTER_) == 1)
 static s_LIB_LPF Vrms_calc;
@@ -304,107 +305,61 @@ void _APP_CHARGSERV_check_Irms_loop()
  *
  */
 
-typedef struct {
-    uint32_t vrms_value;  // 계산된 VRMS 최대값
-    uint32_t compensation;  // 보상값
-} VLOOKUP;
 
-#define VLOOKUP_SIZE 65
-
-VLOOKUP vrms_lookup_table[VLOOKUP_SIZE] = {
-	{13236, -8516}, // 실제 전압 ~50V
-	{13435, -8216}, // 실제 전압 51V ~ 55V
-	{13635, -7915}, // 실제 전압 56V ~ 60V
-	{13863, -7644}, // 실제 전압 61V ~ 64V
-	{14092, -7373}, // 실제 전압 65V ~ 69V
-	{14336, -7116}, // 실제 전압 70V ~ 74V
-	{14580, -6859}, // 실제 전압 75V ~ 79V
-	{14831, -6611}, // 실제 전압 80V ~ 84V
-	{15082, -6362}, // 실제 전압 85V ~ 89V
-	{15351, -6132}, // 실제 전압 90V ~ 94V
-	{15621, -5901}, // 실제 전압 95V ~ 99V
-	{15894, -5675}, // 실제 전압 100V ~ 104V
-	{16167, -5448}, // 실제 전압 105V ~ 109V
-	{16450, -5217}, // 실제 전압 110V ~ 114V
-	{16734, -4986}, // 실제 전압 115V ~ 119V
-	{16979, -4745}, // 실제 전압 120V ~ 124V
-	{17224, -4504}, // 실제 전압 125V ~ 129V
-	{17478, -4274}, // 실제 전압 130V ~ 134V
-	{17732, -4043}, // 실제 전압 135V ~ 139V
-	{18009, -3805}, // 실제 전압 140V ~ 144V
-	{18287, -3567}, // 실제 전압 145V ~ 149V
-	{18549, -3330}, // 실제 전압 150V ~ 154V
-	{18812, -3092}, // 실제 전압 155V ~ 159V
-	{19077, -2858}, // 실제 전압 160V ~ 164V
-	{19343, -2623}, // 실제 전압 165V ~ 169V
-	{19609, -2389}, // 실제 전압 170V ~ 174V
-	{19875, -2155}, // 실제 전압 175V ~ 179V
-	{20137, -1917}, // 실제 전압 180V ~ 184V
-	{20399, -1679}, // 실제 전압 185V ~ 189V
-	{20639, -1419}, // 실제 전압 190V ~ 194V
-	{20879, -1159}, // 실제 전압 195V ~ 199V
-	{21156, -936},  // 실제 전압 200V ~ 204V
-	{21350, -672},  //실제 전압 205V ~ 210V
-	{21480, -300}, //실제 전압 211V
-	{21550, -250},//212V ~ 213V
-	{21650, -200},//214V ~ 216V
-	{21700, 0},//217V
-    {21800, 0},//218V
-	{21860, 100},//219V
-	{21950, 100}, //220V~221V
-	{22050, 250}, //222V ~ 223V
-	{22150, 350}, //224V ~ 225V
-    {22260, 450}, //226V ~ 227V
-	{22350, 550}, //228V ~ 229V
-	{22450, 650}, //230V ~ 231V
-	{22550, 750}, //232V ~ 233V
-	{22650, 850}, //234V ~ 235V
-	{22750, 950}, //236V ~ 237V
-	{22850, 1050}, //238V ~ 239V
-	{22950, 1250}, //240V ~ 242V
-	{23050, 1350}, //243V ~ 244V
-	{23150, 1500}, //245V ~ 246V
-    {23250, 1600}, //247V ~ 248V
-	{23300, 1650}, //249V ~ 250V
-	{23400, 1800}, //251V ~ 252V
-	{23450, 1900}, //253V
-	{23480, 1950}, //254V
-	{23500, 2000}, //255V
-	{23550, 2050}, //256V
-	{23600, 2200}, //257V ~ 258V
-	{23650, 2300}, //259V
-    {23700, 2250}, //260V
-	{23950, 2400}, //265V
-	{24050, 2800}, //270V
-};
-
-// look up 테이블로부터 보상값을 찾는 함수
-uint32_t get_compensation(uint32_t vrms) {
-    for (int i = 0; i < VLOOKUP_SIZE; i++) {
-        if (vrms <= vrms_lookup_table[i].vrms_value) {//계산된 vrms의 최대값과 vrms 기준값과 비교
-            return vrms_lookup_table[i].compensation;
-        }
-    }
-    // 270V 이상 -> 보상값 28V
-    return vrms_lookup_table[VLOOKUP_SIZE - 1].compensation;
-}
-
-//uint32_t get_vrms_value(uint32_t vrms) {
-//    for (int i = 0; i < VLOOKUP_SIZE; i++) {
-//        if (vrms <= vrms_lookup_table[i].vrms_value) {
-//            return vrms_lookup_table[i].vrms_value;
+//#define TABLE_SIZE 11  // 195V ~ 245V까지 5V 단위
+//
+//typedef struct {
+//    uint32_t vrms_value_15_25;  // 15도 ~ 25도 계산된 VRMS
+//	uint32_t vrms_value_50_60; // 50도 ~ 60도 계산된 VRMS
+//	float scale_factor_15_25;  // 15~25도 보상 배율
+//    float scale_factor_50_60;  // 50~60도 보상 배율
+//} LookupEntry;
+//
+//// 보상값(배율) 테이블 정의
+//LookupEntry lookup_table[TABLE_SIZE] = {
+//    {20387, 20911, 0.956, 0.933}, //195V 이하
+//    {20526, 21162, 0.974, 0.945}, //200V
+//    {20747, 21354, 0.988, 0.96}, //205V
+//    {20984, 21620, 1.001, 0.971}, //210V
+//    {21235, 21937, 1.012, 0.98}, //215V
+//    {21471, 22093, 1.025, 0.996}, //220V
+//	{21729, 22321, 1.035, 1.008}, //225V
+//    {21981, 22587, 1.046, 1.018}, //230V
+//	{22187, 22720, 1.059, 1.034}, //235V
+//    {22424, 22905, 1.07, 1.048}, //240V
+//	{22638, 22918, 1.082, 1.069}, //245V 이상
+//};
+//
+//// 보상값 찾기 함수
+//float get_scale_factor(uint32_t vrms, int16_t temperature)
+//{
+//    for (int i = 0; i < TABLE_SIZE; i++) {
+//        if (temperature <= 25) {  // 온도가 25도 이하일경우
+//            if (vrms <= lookup_table[i].vrms_value_15_25) {
+//                return lookup_table[i].scale_factor_15_25;
+//            }
+//        } else if (temperature > 25) {  // 26도 이상인 경우에는 50~60도 배율 적용
+//            if (vrms <= lookup_table[i].vrms_value_50_60) {
+//                return lookup_table[i].scale_factor_50_60;
+//            }
 //        }
 //    }
+//    // 테이블 범위를 초과하면 마지막 값 반환
+//    return (temperature <= 25) ? lookup_table[TABLE_SIZE - 1].scale_factor_15_25
+//                                    : lookup_table[TABLE_SIZE - 1].scale_factor_50_60;
 //}
+
 
 #if 1
 void _APP_CHARGSERV_check_Vrms_loop() {
     uint16_t temp = gADCData[ADC_AC_V_INDEX_];
+	int16_t temperature = _MW_NTC_get_temp();
 
     static uint16_t dtemp = 0;
     static uint32_t adc_temp[300] = {0};
     static uint16_t adc_temp_index = 0;
     uint32_t adc_temp_upper = 0;
+	uint32_t adc_temp_lpf_value = 0;
 
     double vrms_adc_value = (double)temp;
 
@@ -416,7 +371,7 @@ void _APP_CHARGSERV_check_Vrms_loop() {
 #if 0
     double vrms_adc_input_voltage = ((vrms_adc_value / 4096.0) * 3.3);
 #else
-    double vrms_adc_input_voltage = (((vrms_adc_value / 4096.0) * 3.3) + 1.28);
+    double vrms_adc_input_voltage = (((vrms_adc_value / 4096.0) * 3.3) + 1.65); //2025/02/11 +1.28 -> 1.65로 교체
 #endif
 
     double vrms_voltage = ((vrms_adc_input_voltage * 10000000.0) / 1091.0);
@@ -432,14 +387,14 @@ void _APP_CHARGSERV_check_Vrms_loop() {
 #if ((_VRMS_IRMS_CALC_LPF_FILTER_) == 0)
     Charger.current_V_rms = adc_temp_upper;
 #else
-    //adc_temp_lpf = _LIB_LPF_calc(&Vrms_calc, adc_temp_upper);
+    adc_temp_lpf = _LIB_LPF_calc(&Vrms_calc, adc_temp_upper);
 
-    uint32_t compensation = get_compensation(adc_temp_upper);//vrms 최대값을 바탕으로 보상값 계산
-    //uint32_t vrms_value = get_vrms_value(adc_temp_upper);
-	adc_temp_upper += compensation;
-	//lpf를 거친 신호에 보상을 해줄 경우 lpf 값이 계속 달라져서 정확한 보상값을 찾기 힘듬
+	//float compensation = get_scale_factor(adc_temp_lpf, temperature);// 계산된 lpf를 거친 vrms 값을 바탕으로 보상배율 결정
+    
+	adc_temp_lpf_value = (uint32_t)(adc_temp_lpf);
+	//adc_temp_lpf_value = (uint32_t)(adc_temp_lpf * compensation); //보상값 적용
 
-    _APP_CHARGSERV_set_voltage_rms_V(adc_temp_upper);
+	 _APP_CHARGSERV_set_voltage_rms_V(adc_temp_lpf);
 #endif
 
 #if 1
@@ -450,9 +405,9 @@ void _APP_CHARGSERV_check_Vrms_loop() {
 
 
        // printf(" vrms_value : %ld \r\n",  vrms_value);
-        printf("before compensation VRMS : %ld \r\n", adc_temp_upper_value);
-        printf("compensation : %ld \r\n", compensation);
-        printf("after compensation VRMS : %ld \r\n", adc_temp_upper);
+        printf("before compensation VRMS : %ld \r\n", adc_temp_lpf);
+//        printf("compensation : %ld \r\n", compensation);
+//		printf("after compensation VRMS : %ld \r\n", adc_temp_lpf_value);
         printf("zct : %d \r\n", gADCData[ADC_ZCT_INDEX_]);
     }
 #endif
