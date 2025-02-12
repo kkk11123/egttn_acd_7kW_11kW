@@ -349,6 +349,21 @@ void _APP_CHARGSERV_check_Irms_loop()
 //                                    : lookup_table[TABLE_SIZE - 1].scale_factor_50_60;
 //}
 
+// AC 전압 계산 함수
+uint16_t _APP_METERING_calc_vrms(float Rinput, float Routput, float Vref, uint16_t ADC_value) {
+    // ADC 최대값 (12비트 기준 -> 4095)
+    const uint16_t ADC_MAX = 4095;
+    
+    // ADC 값을 전압으로 변환 (Vadc)
+    float Vadc = (ADC_value / (float)ADC_MAX) * Vref; // ADC 기준 전압 변환
+    
+    // 실제 입력 전압(Vrms) 계산 (분압 보정 적용)
+    float Vrms = Vadc * ((Rinput + Routput) / Routput);
+    
+    // 0.01V 단위로 변환하여 정수 반환
+    return (uint16_t)(Vrms * 100);
+}
+
 
 #if 1
 void _APP_CHARGSERV_check_Vrms_loop() {
