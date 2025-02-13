@@ -280,24 +280,28 @@ uint8_t _MW_NTC_cal_temp()
 
 uint8_t _MW_NTC_loop()
 {
+    uint8_t ret_value = _FALSE;
+    static uint32_t print_counter = 0; // 출력 카운터
 
-	uint8_t ret_value = _FALSE;
+    if (_TRUE == _MW_NTC_store_value(gADCData[ADC_TEMP_INDEX_])) {
+        if (_TRUE == _MW_NTC_cal_temp()) {
 
-	if(_TRUE == _MW_NTC_store_value(gADCData[ADC_TEMP_INDEX_]))
-	{
-		if(_TRUE == _MW_NTC_cal_temp())
-		{
+            print_counter++; // 호출 횟수 증가
 
-#if ((__NTC_DEBUG__)==1)
-				_LIB_LOGGING_printf("temp : %d \r\n",_MW_NTC_get_temp());
+            // 1000번마다 출력
+            if (print_counter >= 100) {
+                print_counter = 0; // 카운터 리셋
 
+#if ((__NTC_DEBUG__) == 1)
+                _LIB_LOGGING_printf("temp : %d \r\n", _MW_NTC_get_temp());
 #endif
-			ret_value = _TRUE;
+            }
 
-		}
-	}
+            ret_value = _TRUE;
+        }
+    }
 
-	return ret_value;
+    return ret_value;
 }
 
 

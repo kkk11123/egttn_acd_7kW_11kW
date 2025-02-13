@@ -349,35 +349,24 @@ void _APP_CHARGSERV_check_Irms_loop()
 //                                    : lookup_table[TABLE_SIZE - 1].scale_factor_50_60;
 //}
 
-// AC 전압 계산 함수
-uint16_t _APP_METERING_calc_vrms(float Rinput, float Routput, float Vref, uint16_t ADC_value) {
-    // ADC 최대값 (12비트 기준 -> 4095)
-    const uint16_t ADC_MAX = 4095;
-    
-    // ADC 값을 전압으로 변환 (Vadc)
-    float Vadc = (ADC_value / (float)ADC_MAX) * Vref; // ADC 기준 전압 변환
-    
-    // 실제 입력 전압(Vrms) 계산 (분압 보정 적용)
-    float Vrms = Vadc * ((Rinput + Routput) / Routput);
-    
-    // 0.01V 단위로 변환하여 정수 반환
-    return (uint16_t)(Vrms * 100);
-}
-
+#define ADC_MAX 4095.0       // 12비트 ADC 최대값
+#define VREF 1.65           // 기준 전압 1.65V
 
 #if 1
-void _APP_CHARGSERV_check_Vrms_loop() {
-    uint16_t temp = gADCData[ADC_AC_V_INDEX_];
-	int16_t temperature = _MW_NTC_get_temp();
+// AC 전압값 리턴 함수
+uint16_t _APP_METERING_calc_vrms(float Rinput, float Routput) {
 
+	t_curr = _LIB_USERDLEAY_gettick();
+	delta_t = calc_delta_t_100us(t_bak, t_curr);
+
+	uint16_t temp = gADCData[ADC_AC_V_INDEX_];
     static uint16_t dtemp = 0;
     static uint32_t adc_temp[300] = {0};
     static uint16_t adc_temp_index = 0;
     uint32_t adc_temp_upper = 0;
 	uint32_t adc_temp_lpf_value = 0;
 
-    double vrms_adc_value = (double)temp;
-
+	double vrms_adc_value = (double)temp;
 
 #if ((_VRMS_IRMS_CALC_LPF_FILTER_) == 1)
     uint32_t adc_temp_lpf = 0;
@@ -386,49 +375,59 @@ void _APP_CHARGSERV_check_Vrms_loop() {
 #if 0
     double vrms_adc_input_voltage = ((vrms_adc_value / 4096.0) * 3.3);
 #else
-    double vrms_adc_input_voltage = (((vrms_adc_value / 4096.0) * 3.3) + 1.65); //2025/02/11 +1.28 -> 1.65로 교체
+	double vrms_adc_input_voltage = ((vrms_adc_value / 4096.0) * VREF);
+	double vrms_voltage = vrms_adc_input_voltage * (Routput/Rinput) + VREF;
 #endif
 
-    double vrms_voltage = ((vrms_adc_input_voltage * 10000000.0) / 1091.0);
+	//Vpeak값으로 계산
+	adc_temp[adc_temp_index++] = (uint32_t)vrms_voltage;
+	if (adc_temp_index >= 300) adc_temp_index = 0;
 
-    adc_temp[adc_temp_index++] = (uint32_t)vrms_voltage;
-    if (adc_temp_index >= 300) adc_temp_index = 0;
-
-    for (int i = 0; i < 300; i++) {
-        if (adc_temp[i] > adc_temp_upper) adc_temp_upper = adc_temp[i];
-    }
-    uint32_t adc_temp_upper_value = adc_temp_upper;
+		for (int i = 0; i < 300; i++) {
+			if (adc_temp[i] > adc_temp_upper) adc_temp_upper = adc_temp[i];
+			}
+	uint32_t adc_temp_upper_value = adc_temp_upper;
 
 #if ((_VRMS_IRMS_CALC_LPF_FILTER_) == 0)
-    Charger.current_V_rms = adc_temp_upper;
+	Charger.current_V_rms = adc_temp_upper;
 #else
-    adc_temp_lpf = _LIB_LPF_calc(&Vrms_calc, adc_temp_upper);
+	adc_temp_lpf = _LIB_LPF_calc(&Vrms_calc, adc_temp_upper);
 
 	//float compensation = get_scale_factor(adc_temp_lpf, temperature);// 계산된 lpf를 거친 vrms 값을 바탕으로 보상배율 결정
-    
-	adc_temp_lpf_value = (uint32_t)(adc_temp_lpf);
+
+	adc_temp_lpf_value = (uint32_t)(adc_temp_lpf); 
 	//adc_temp_lpf_value = (uint32_t)(adc_temp_lpf * compensation); //보상값 적용
 
-	 _APP_CHARGSERV_set_voltage_rms_V(adc_temp_lpf);
-#endif
+	double vrms_voltage = _APP_METERING_calc_vrms(250000.0, 1000.0, VREF, vrms_adc_value);
+ 	_APP_CHARGSERV_set_voltage_rms_V(adc_temp_lpf);
+#endif  
 
-#if 1
+
+	//출력
+	#if 1
     dtemp++;
 
     if (dtemp > 1000) {
         dtemp = 0;
 
 
-       // printf(" vrms_value : %ld \r\n",  vrms_value);
-        printf("before compensation VRMS : %ld \r\n", adc_temp_lpf);
+	   //printf("adc_voltage : %d \r\n", gADCData[ADC_AC_V_INDEX_]);
+        printf("before compensation VRMS : %ld \r\n", adc_temp_lpf_value);
 //        printf("compensation : %ld \r\n", compensation);
 //		printf("after compensation VRMS : %ld \r\n", adc_temp_lpf_value);
         printf("zct : %d \r\n", gADCData[ADC_ZCT_INDEX_]);
     }
+	else
+	{
+		dtemp++;
+	}
+
+	integral_instant_voltage = 0;
+	delta_t_total = 0;
+
 #endif
 }
 #endif
-
 
 void _APP_METERING_startup()
 {
@@ -456,7 +455,8 @@ void _APP_METERING_process()
     	if(vrms_step >= 5)
     	{
     		vrms_step = 0;
-    		_APP_CHARGSERV_check_Vrms_loop();
+    		//_APP_CHARGSERV_check_Vrms_loop();
+			_APP_METERING_calc_vrms(250000.0, 1000.0);
     	}
     	else
     	{
