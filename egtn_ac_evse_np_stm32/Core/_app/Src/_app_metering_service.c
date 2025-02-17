@@ -83,10 +83,12 @@ void _APP_CHARGSERV_check_Irms_loop()
 
 	irms_adc_value = (double)temp;
 
+	
 	//irms_adc_value_final = irms_adc_value * sqrt(2);
 	irms_adc_value_final = irms_adc_value;
 
 	instant_current = INSTANT_CURRENT_CONSTANT * irms_adc_value_final;
+	
 
 	instant_current_final = instant_current * instant_current;
 
@@ -128,6 +130,7 @@ void _APP_CHARGSERV_check_Irms_loop()
 					dtemp = 0;
 					//printf("ADC:%ld\r\n",(uint32_t)(temp));
 					//printf("inA:%ld\r\n",(uint32_t)(instant_current*100));
+					//printf("instant_current_final:%ld\r\n",(uint32_t)(instant_current_final*100));
 					//printf("dt:%ld\r\n",(uint32_t)delta_t);
 					printf("p:%ld\r\n",(uint32_t)integral_instant_current);
 					printf("t:%ld\r\n",(uint32_t)delta_t_total);
@@ -306,124 +309,131 @@ void _APP_CHARGSERV_check_Irms_loop()
  */
 
 
-//#define TABLE_SIZE 11  // 195V ~ 245V까지 5V 단위
-//
-//typedef struct {
-//    uint32_t vrms_value_15_25;  // 15도 ~ 25도 계산된 VRMS
-//	uint32_t vrms_value_50_60; // 50도 ~ 60도 계산된 VRMS
-//	float scale_factor_15_25;  // 15~25도 보상 배율
-//    float scale_factor_50_60;  // 50~60도 보상 배율
-//} LookupEntry;
-//
-//// 보상값(배율) 테이블 정의
-//LookupEntry lookup_table[TABLE_SIZE] = {
-//    {20387, 20911, 0.956, 0.933}, //195V 이하
-//    {20526, 21162, 0.974, 0.945}, //200V
-//    {20747, 21354, 0.988, 0.96}, //205V
-//    {20984, 21620, 1.001, 0.971}, //210V
-//    {21235, 21937, 1.012, 0.98}, //215V
-//    {21471, 22093, 1.025, 0.996}, //220V
-//	{21729, 22321, 1.035, 1.008}, //225V
-//    {21981, 22587, 1.046, 1.018}, //230V
-//	{22187, 22720, 1.059, 1.034}, //235V
-//    {22424, 22905, 1.07, 1.048}, //240V
-//	{22638, 22918, 1.082, 1.069}, //245V 이상
-//};
-//
-//// 보상값 찾기 함수
-//float get_scale_factor(uint32_t vrms, int16_t temperature)
-//{
-//    for (int i = 0; i < TABLE_SIZE; i++) {
-//        if (temperature <= 25) {  // 온도가 25도 이하일경우
-//            if (vrms <= lookup_table[i].vrms_value_15_25) {
-//                return lookup_table[i].scale_factor_15_25;
-//            }
-//        } else if (temperature > 25) {  // 26도 이상인 경우에는 50~60도 배율 적용
-//            if (vrms <= lookup_table[i].vrms_value_50_60) {
-//                return lookup_table[i].scale_factor_50_60;
-//            }
-//        }
-//    }
-//    // 테이블 범위를 초과하면 마지막 값 반환
-//    return (temperature <= 25) ? lookup_table[TABLE_SIZE - 1].scale_factor_15_25
-//                                    : lookup_table[TABLE_SIZE - 1].scale_factor_50_60;
-//}
-
 #define ADC_MAX 4095.0       // 12비트 ADC 최대값
-#define VREF 1.65           // 기준 전압 1.65V
+uint32_t delta_t_total_v = 0; //전압 delta_t 총합
 
 #if 1
 // AC 전압값 리턴 함수
-uint16_t _APP_METERING_calc_vrms(float Rinput, float Routput) {
+uint32_t _APP_METERING_calc_vrms(double Rinput, double Routput, float Vref, double ADC_value) {
 
-	t_curr = _LIB_USERDLEAY_gettick();
-	delta_t = calc_delta_t_100us(t_bak, t_curr);
+	static uint8_t step_v = 0;
 
-	uint16_t temp = gADCData[ADC_AC_V_INDEX_];
-    static uint16_t dtemp = 0;
+	double vrms_adc_value = 0;
+	double vrms_adc_value_final = 0;
+	double instant_voltage = 0;
+	double instant_voltage_final = 0;
+	static double integral_instant_voltage = 0;
+
+	uint32_t delta_t = 0;
+	uint32_t t_curr = 0;
+	static uint32_t t_bak_v = 0;
+
+	static uint8_t delta_t_count_v = 0;
+	double per_t_total_intergral_voltage = 0;
+	double V_rms = 0;
+	uint32_t V_rms_U32 = 0;
+	uint32_t V_rms_U32_LPF = 0;
+
+	//입력 전압 계산
+	double V_in = (((ADC_value/ADC_MAX) * 3.3) - 1.65) * (Rinput/Routput);
+
+	instant_voltage_final = V_in * V_in;
+
+	switch(step_v)
+	{
+		case 0 :
+			step_v = 1;
+		case 1:
+			t_curr = _LIB_USERDLEAY_gettick();
+			delta_t = calc_delta_t_100us(t_bak_v, t_curr);
+
+			//vrms 계산
+			integral_instant_voltage = integral_instant_voltage + (instant_voltage_final * (double)delta_t);
+			delta_t_total_v = delta_t_total_v + delta_t;
+			delta_t_count_v++;
+
+			if(28 <= delta_t_count_v)
+			{
+				delta_t_count_v = 0;
+
+				per_t_total_intergral_voltage = integral_instant_voltage / ((double)delta_t_total_v);
+
+				V_rms = sqrt(per_t_total_intergral_voltage);
+
+				V_rms_U32 = (uint32_t)(V_rms * 100);//소수 2자리까지 표시
+
+				
+				 //printf("V_in : %u \r\n", (uint32_t)(V_in));
+				 printf("delta_total: %u\r\n", delta_t_total_v); //주기 총합
+				
+				integral_instant_voltage = 0;
+				delta_t_total_v = 0;
+
+				step_v = 0;
+			}
+
+			t_bak_v = t_curr;
+			break;
+		default:
+			break;
+	}
+	return V_rms_U32;
+
+}
+#endif
+
+#if 1
+void _APP_CHARGSERV_check_Vrms_loop() {
+    uint16_t temp = gADCData[ADC_AC_V_INDEX_];
+
+    static uint16_t dtemp_v = 0;
     static uint32_t adc_temp[300] = {0};
     static uint16_t adc_temp_index = 0;
     uint32_t adc_temp_upper = 0;
 	uint32_t adc_temp_lpf_value = 0;
+	uint32_t vrms_voltage = 0;
 
-	double vrms_adc_value = (double)temp;
+    double vrms_adc_value = (double)temp;
+
 
 #if ((_VRMS_IRMS_CALC_LPF_FILTER_) == 1)
     uint32_t adc_temp_lpf = 0;
 #endif
 
-#if 0
-    double vrms_adc_input_voltage = ((vrms_adc_value / 4096.0) * 3.3);
-#else
-	double vrms_adc_input_voltage = ((vrms_adc_value / 4096.0) * VREF);
-	double vrms_voltage = vrms_adc_input_voltage * (Routput/Rinput) + VREF;
-#endif
+	//AC 전압값 리턴 함수 적용(R_output: 250K, R_input : 1K, Vref: 1.65V)
+	vrms_voltage = _APP_METERING_calc_vrms(250000.0, 1000.0, 1.65, vrms_adc_value);
 
-	//Vpeak값으로 계산
-	adc_temp[adc_temp_index++] = (uint32_t)vrms_voltage;
-	if (adc_temp_index >= 300) adc_temp_index = 0;
+	//vrms중에 최대값 탐색
+    adc_temp[adc_temp_index++] = vrms_voltage;
+    if (adc_temp_index >= 300) adc_temp_index = 0;
 
-		for (int i = 0; i < 300; i++) {
-			if (adc_temp[i] > adc_temp_upper) adc_temp_upper = adc_temp[i];
-			}
-	uint32_t adc_temp_upper_value = adc_temp_upper;
+    for (int i = 0; i < 300; i++) {
+        if (adc_temp[i] > adc_temp_upper) adc_temp_upper = adc_temp[i];
+    }
+    uint32_t adc_temp_upper_value = adc_temp_upper;
 
 #if ((_VRMS_IRMS_CALC_LPF_FILTER_) == 0)
-	Charger.current_V_rms = adc_temp_upper;
+    Charger.current_V_rms = adc_temp_upper;
 #else
-	adc_temp_lpf = _LIB_LPF_calc(&Vrms_calc, adc_temp_upper);
+	//LPF 적용(TimeInterval: 2, Tau: 800)
+	 adc_temp_lpf = _LIB_LPF_calc(&Vrms_calc, adc_temp_upper_value);
 
-	//float compensation = get_scale_factor(adc_temp_lpf, temperature);// 계산된 lpf를 거친 vrms 값을 바탕으로 보상배율 결정
-
-	adc_temp_lpf_value = (uint32_t)(adc_temp_lpf); 
-	//adc_temp_lpf_value = (uint32_t)(adc_temp_lpf * compensation); //보상값 적용
-
-	double vrms_voltage = _APP_METERING_calc_vrms(250000.0, 1000.0, VREF, vrms_adc_value);
- 	_APP_CHARGSERV_set_voltage_rms_V(adc_temp_lpf);
-#endif  
+	 _APP_CHARGSERV_set_voltage_rms_V(adc_temp_lpf);
+#endif
 
 
-	//출력
-	#if 1
-    dtemp++;
-
-    if (dtemp > 1000) {
-        dtemp = 0;
-
-
-	   //printf("adc_voltage : %d \r\n", gADCData[ADC_AC_V_INDEX_]);
-        printf("before compensation VRMS : %ld \r\n", adc_temp_lpf_value);
-//        printf("compensation : %ld \r\n", compensation);
-//		printf("after compensation VRMS : %ld \r\n", adc_temp_lpf_value);
-        printf("zct : %d \r\n", gADCData[ADC_ZCT_INDEX_]);
-    }
+//출력
+#if 1
+if(dtemp_v > 1000)
+	{
+		dtemp_v = 0;
+		printf("VRMS : %ld \r\n", adc_temp_lpf);
+		printf("zct : %d \r\n", gADCData[ADC_ZCT_INDEX_]);
+	}
 	else
 	{
-		dtemp++;
+		dtemp_v++;
 	}
-
-	integral_instant_voltage = 0;
-	delta_t_total = 0;
 
 #endif
 }
@@ -455,8 +465,7 @@ void _APP_METERING_process()
     	if(vrms_step >= 5)
     	{
     		vrms_step = 0;
-    		//_APP_CHARGSERV_check_Vrms_loop();
-			_APP_METERING_calc_vrms(250000.0, 1000.0);
+    		_APP_CHARGSERV_check_Vrms_loop();
     	}
     	else
     	{
