@@ -28,10 +28,12 @@ static sCP CP;
  * index 2 : Board Temp
  */
 //__IO uint16_t gADCData[MAX_ADC_CH] = {0,};
+//최적화 방지
 __IO uint16_t gADCData[MAX_ADC_CH] = {0,};
 
 void _MW_CP_init()
 {
+	//output compare 인터럽트 시작
 	HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_2);
 	HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_3);
 	HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_4);
@@ -39,10 +41,12 @@ void _MW_CP_init()
 	HAL_ADCEx_Calibration_Start(&hadc);
 	HAL_ADC_Start_DMA(&hadc, (uint32_t*)gADCData, MAX_ADC_CH);
 
-	_MW_CP_set_pwm_duty(100);
+	_MW_CP_set_pwm_duty(100); //CP 듀티비 100설정
 	//CP.PWM_DutyBK = _MW_CP_get_pwm_duty();
 
+	//CP 상태 초기화
 	CP.State = default0;
+	//디바운스버퍼 초기화
 	_LIB_DEBOUNCECHECK_init(CP.DebounceCheckBuf, CP_ADC_DEBOUNCECHECKBUF_LENGTH);
 
 	CP.H.ave_Volt = 0;
@@ -68,6 +72,7 @@ void _MW_CP_init()
     _LIB_USERDELAY_set(&gDelay_mcctl, MCCTL_DELAY);
 }
 
+//듀티비 변경 함수
 uint8_t _MW_CP_change_duty(TIM_HandleTypeDef *htim, uint32_t cp_channel)
 {
 	double temp_PWM_Duty = _MW_CP_get_pwm_duty();
@@ -88,6 +93,7 @@ uint8_t _MW_CP_change_duty(TIM_HandleTypeDef *htim, uint32_t cp_channel)
 	return _FALSE;
 }
 
+//듀티비 설정 함수
 uint8_t _MW_CP_set_pwm_duty(double persent)
 {
 	if((persent < 0) || (persent > 100))
@@ -113,13 +119,14 @@ double _MW_CP_get_l_final_voltage()
 	return CP.L.ave_Volt;
 }
 
+//CP 릴레이 제어 함수
 uint8_t _MW_CP_cp_relay_ctl(int value)
 {
 	if(value == _OFF)
 	{
 		if(_MW_GPIO_get_gpo(CP_RY) == _ON)
 		{
-			_MW_GPIO_set_gpo(CP_RY, _OFF);
+			_MW_GPIO_set_gpo(CP_RY, _OFF); //CP 릴레이 ON -> OFF
 #if ((__CP_DEBUG__)==1)
 			_LIB_LOGGING_printf("CP_RELAY : --OFF-- \r\n");
 #endif
@@ -130,7 +137,7 @@ uint8_t _MW_CP_cp_relay_ctl(int value)
 	{
 		if(_MW_GPIO_get_gpo(CP_RY) == _OFF)
 		{
-			_MW_GPIO_set_gpo(CP_RY, _ON);
+			_MW_GPIO_set_gpo(CP_RY, _ON); //CP 릴레이 OFF -> ON
 #if ((__CP_DEBUG__)==1)
 			_LIB_LOGGING_printf("CP_RELAY : --ON-- \r\n");
 #endif
@@ -281,6 +288,7 @@ uint8_t _MW_CP_mc_relay_clear()
 	return ret_value;
 }
 
+//MC relay 제어 함수
 uint8_t _MW_CP_mc_relay_ctl(int value)
 {
 	uint8_t ret_value = _CONTINUE;
@@ -291,7 +299,7 @@ uint8_t _MW_CP_mc_relay_ctl(int value)
 	{
 		if(_TRUE == _LIB_USERDELAY_start(&gDelay_mcctl, DELAY_RENEW_ON))
 		{
-			if(value == _OFF)
+			if(value == _OFF) //MC relay OFF
 			{
 				_MW_GPIO_set_gpo(MC_TURN_OFF, _ON);
 				_MW_GPIO_set_gpo(MC_TURN_ON, _OFF);
@@ -300,7 +308,7 @@ uint8_t _MW_CP_mc_relay_ctl(int value)
 #endif
 			}
 			else	//value == _ON_
-			{
+			{//MC relay ON
 				_MW_GPIO_set_gpo(MC_TURN_ON, _ON);
 				_MW_GPIO_set_gpo(MC_TURN_OFF, _OFF);
 #if ((__CP_DEBUG__)==1)
@@ -333,8 +341,10 @@ uint8_t _MW_CP_mc_relay_off_fast()
 
 	if(_MW_CP_get_mc_relay_state() == _ON)
 	{
-		GPO_MC_TURN_OFF_ENABLE;
-		GPO_MC_TURN_ON_DISABLE;
+		//이전값과 비교하지 않고 바로 turn off
+		//mc relay off
+		GPO_MC_TURN_OFF_ENABLE; //TURN OFF ON
+		GPO_MC_TURN_ON_DISABLE; //TURN ON OFF
 
 		_LIB_LOGGING_printf("#### fast mc off _ OK #### \r\n");
 
@@ -399,12 +409,12 @@ uint16_t _MW_CP_cal_ampe_to_duty(uint16_t Ampe)
 	double temp_Ampe = (double)Ampe;
 	double temp_Duty = 5;
 
-	/* 6A ~ 51A */
+	/* 6A ~ 51A */ 
 	if((temp_Ampe > 6) && (temp_Ampe <= 51))
 	{
 		temp_Duty = temp_Ampe / 0.6F; //11.66 ~ 85
 	}
-	/* 51A ~ 80A */
+	/* 51A ~ 80A */ //과전류가 흐를 때 duty비를 낮춰서 저속 충전
 	else if((temp_Ampe > 51) && (temp_Ampe <= 80)) //0.79 ~ 1.22
 	{
 		temp_Duty = ( temp_Ampe / 2.5F + 64.0F );
@@ -413,9 +423,10 @@ uint16_t _MW_CP_cal_ampe_to_duty(uint16_t Ampe)
 	return (uint16_t)temp_Duty;
 }
 
-
+//cp 상태 출력
 uint8_t _MW_CP_print_cp_state()
 {
+	//cp 상태가 변한 경우 출력
 	if(CP.State != CP.State_bk)
 	{
 		switch(CP.State)
@@ -469,6 +480,7 @@ uint8_t _MW_CP_print_cp_state()
 	return _TRUE;
 }
 
+//cp 상단 섹션과 하단 섹션 평균 전압값 계산 함수
 uint8_t _MW_CP_average_adc(uint8_t section, uint16_t adcvalue)
 {
 	switch(section)
@@ -660,6 +672,7 @@ uint8_t _MW_CP_calculate_adc()
 	return _CONTINUE;
 }
 #else
+//cp 상단 섹션과 하단 섹션 평균 adc 전압값 계산
 uint8_t _MW_CP_calculate_adc()
 {
 	uint8_t cp_section_h_complete_adc = CP_is_complete_ADC(CP_SECTION_H);
@@ -713,6 +726,7 @@ uint8_t _MW_CP_calculate_adc()
 #endif
 #endif
 
+//cp 상태 설정 함수
 uint8_t _MW_CP_calculate_state()
 {
 	double temp_pwm_duty = _MW_CP_get_pwm_duty();
@@ -763,7 +777,7 @@ uint8_t _MW_CP_calculate_state()
 	{
 		CP.State = CP.DebounceCheckBuf[CP_ADC_VALUE_INDEX]; //CP 상태 설정
 #if ((__CP_DEBUG__)==1)
-		_MW_CP_print_cp_state();
+		_MW_CP_print_cp_state(); //cp 상태 출력
 #endif
 		return _TRUE;
 	}

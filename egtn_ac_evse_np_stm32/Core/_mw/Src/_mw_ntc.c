@@ -207,6 +207,7 @@ const uint16_t Temp_array[] =
 };
 #endif
 
+//온도값 계산 함수
 int _MW_NTC_cal_ntc(uint16_t i_temp)
 {
 	int j, k;
@@ -233,6 +234,7 @@ int _MW_NTC_cal_ntc(uint16_t i_temp)
 
 	return m_result;
 }
+//NTC 온도센서 ADC 결과값 저장 함수
 uint8_t _MW_NTC_store_value(uint16_t ADC_value)
 {
 	static int index = 0;
@@ -252,6 +254,7 @@ int16_t _MW_NTC_get_temp()
 {
 	return NTC_Temp;
 }
+//NTC ADC 값 -> 전압 변환 -> 온도값 반환
 uint8_t _MW_NTC_cal_temp()
 {
 	static float ADCvalue;
@@ -267,13 +270,13 @@ uint8_t _MW_NTC_cal_temp()
 	ADCvalue = ADCvalue / NTC_TEMP_ADC_LENGTH;
 
 
-	ADC_mV = (ADCvalue / 4096.0F) * 3.35F * 1000.0F;
+	ADC_mV = (ADCvalue / 4096.0F) * 3.35F * 1000.0F; //mv 단위
 
 #if ((__NTC_DEBUG__)==1)
 		//_LIB_LOGGING_printf("ADC : %d \r\n",(int)ADC_mV);
 #endif
 
-	NTC_Temp = _MW_NTC_cal_ntc(ADC_mV);
+	NTC_Temp = _MW_NTC_cal_ntc(ADC_mV); //전압에 맞는 온도값 반환
 
 	return _TRUE;
 }

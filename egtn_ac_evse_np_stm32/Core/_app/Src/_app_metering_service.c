@@ -58,6 +58,7 @@ uint32_t calc_delta_t_100us(uint32_t prev, uint32_t t)
 
 uint32_t delta_t_total = 0;
 
+//rms 전류 계산 및 충전 전류 셋팅 함수
 void _APP_CHARGSERV_check_Irms_loop()
 {
 	static uint8_t step = 0;
@@ -83,8 +84,7 @@ void _APP_CHARGSERV_check_Irms_loop()
 
 	irms_adc_value = (double)temp;
 
-	
-	//irms_adc_value_final = irms_adc_value * sqrt(2);
+	//전류 rms 계산
 	irms_adc_value_final = irms_adc_value;
 
 	instant_current = INSTANT_CURRENT_CONSTANT * irms_adc_value_final;
@@ -92,16 +92,9 @@ void _APP_CHARGSERV_check_Irms_loop()
 
 	instant_current_final = instant_current * instant_current;
 
-
-
 	switch(step)
 	{
 		case 0 :
-			//integral_instant_current = 0;
-			//delta_t_total = 0;
-			//delta_t_count = 0;
-
-
 			step = 1;
 		case 1:
 			t_curr = _LIB_USERDLEAY_gettick();
@@ -120,7 +113,7 @@ void _APP_CHARGSERV_check_Irms_loop()
 				I_rms = sqrt(per_t_total_intergral_current);
 
 				I_rms_U32 = (uint32_t)(I_rms * 1000);//mA 단위로 변환
-
+				//LPF 적용
 				I_rms_U32_LPF = _LIB_LPF_calc(&Irms_calc, I_rms_U32);
 
 				_APP_CHARGSERV_set_current_rms_A(I_rms_U32_LPF);
@@ -364,7 +357,7 @@ uint32_t _APP_METERING_calc_vrms(double Rinput, double Routput, float Vref, doub
 
 				
 				 //printf("V_in : %u \r\n", (uint32_t)(V_in));
-				 printf("delta_total: %u\r\n", delta_t_total_v); //주기 총합
+				 //printf("delta_total: %u\r\n", delta_t_total_v); //주기 총합
 				
 				integral_instant_voltage = 0;
 				delta_t_total_v = 0;
@@ -382,6 +375,7 @@ uint32_t _APP_METERING_calc_vrms(double Rinput, double Routput, float Vref, doub
 }
 #endif
 
+//충전 전압 셋팅 함수
 #if 1
 void _APP_CHARGSERV_check_Vrms_loop() {
     uint16_t temp = gADCData[ADC_AC_V_INDEX_];
@@ -422,7 +416,7 @@ void _APP_CHARGSERV_check_Vrms_loop() {
 #endif
 
 
-//출력
+//시리얼 디버깅 출력
 #if 1
 if(dtemp_v > 1000)
 	{
