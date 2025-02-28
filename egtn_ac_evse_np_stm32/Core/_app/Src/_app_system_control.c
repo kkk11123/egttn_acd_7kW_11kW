@@ -471,6 +471,8 @@ void check_temp_loop()
 #else
 			over_temp_flag = _TRUE;
 			_APP_CHARGSERV_over_temperature_fault_set();
+			printf("temperature fault set\r\n");
+			printf("temperature over > 75\r\n");
 #endif
 		}
 		else if((temp_value < NORMAL_TEMP_THRESHOLD) && (over_temp_flag == _TRUE))
@@ -489,6 +491,8 @@ void check_temp_loop()
 #else
 			over_temp_flag = _FALSE;
 			_APP_CHARGSERV_over_temperature_fault_reset();
+			printf("temperature fault reset\r\n");
+			printf("temperature over < 75\r\n");
 #endif
 		}
 	}

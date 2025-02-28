@@ -33,7 +33,7 @@ typedef enum ECharger_State
     Charging,
     Finish,
 	OTA,
-	Fault,
+	Fault, 
 	Powercut,
 	Chargerstateend
 }eCharger_State;

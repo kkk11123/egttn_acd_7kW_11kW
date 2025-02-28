@@ -28,7 +28,7 @@ static sCP CP;
  * index 2 : Board Temp
  */
 //__IO uint16_t gADCData[MAX_ADC_CH] = {0,};
-//최적화 방지
+//컴파일러 최적화 방지
 __IO uint16_t gADCData[MAX_ADC_CH] = {0,};
 
 void _MW_CP_init()
