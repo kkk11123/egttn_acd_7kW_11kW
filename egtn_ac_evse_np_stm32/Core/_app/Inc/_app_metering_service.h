@@ -21,9 +21,9 @@
 
 #define _VRMS_IRMS_CALC_LPF_FILTER_		1
 #if	((_VRMS_IRMS_CALC_LPF_FILTER_) == 1)
-#define _LPF_TIMEINTERVAL_VOL_ (2)
+#define _LPF_TIMEINTERVAL_VOL_ (2) // 기존 2 → 5 (새로운 값 반영 비율 증가)
 #define _LPF_TIMEINTERVAL_CUR_ (1)
-#define _LPF_TAU_VOL_ (800)
+#define _LPF_TAU_VOL_ (800)    // 기존 800 → 50 (반응속도 증가)
 #define _LPF_TAU_CUR_ (200)
 #endif
 #define _IRMS_INPUT_LPF_FILTER_		0

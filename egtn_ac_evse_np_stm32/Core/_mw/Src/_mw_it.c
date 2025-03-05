@@ -140,7 +140,7 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
 					delay_leakage_current_flag = 1;
 
 #if ((_LEAKAGE_CALC_LPF_FILTER_) == 1)
-					_LIB_LPF_init(&leakage_calc, _LEAKAGE_LPF_TIMEINTERVAL_, _LEAKAGE_LPF_TAU_);
+					_LIB_LPF_init(&leakage_calc, _LEAKAGE_LPF_TIMEINTERVAL_, _LEAKAGE_LPF_TAU_); //노이즈 제거
 					memset(leakage_temp,0,sizeof(leakage_temp));
 					leakage_temp_index = 0;
 					_LIB_LOGGING_printf("#### CHARGSERV : leakage_LPF_init #### \r\n");
@@ -185,28 +185,28 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
 				leakage_temp[leakage_temp_index++] = temp;
 				if(leakage_temp_index >= 16)	leakage_temp_index = 0;
 
-				for(int i = 0; i<16; i++)
+				for(int i = 0; i<16; i++) //누설전류 최대값 구하는 로직
 				{
 					if(leakage_temp[i] > leakage_temp_upper)	leakage_temp_upper = leakage_temp[i];
 				}
 
-				if((0 == print_flag) && (leakage_temp_upper > CHARGSERV_LEAKAGE_AMPE_TO_ADC))
+				if((0 == print_flag) && (leakage_temp_upper > CHARGSERV_LEAKAGE_AMPE_TO_ADC)) //zct adc 최댓값이 1790을 초과하면
 				{
 					print_flag = 1;
 					_LIB_LOGGING_printf("#### CHARGSERV : leakage_temp_upper  time: %ld #### \r\n",_LIB_USERDLEAY_gettick());
 
 				}
-				else if((1 == print_flag) && (leakage_temp_upper <= CHARGSERV_LEAKAGE_AMPE_TO_ADC))
+				else if((1 == print_flag) && (leakage_temp_upper <= CHARGSERV_LEAKAGE_AMPE_TO_ADC)) //zct adc 최댓값이 1790 이하이면
 				{
 					print_flag = 0;
 				}
 
 				leakage_lpf = _LIB_LPF_calc(&leakage_calc, (uint32_t)leakage_temp_upper);
 
-				if((leakage_lpf > CHARGSERV_LEAKAGE_AMPE_TO_ADC) && (_OFF == _APP_CHARGSERV_is_leakage_fault_set()))
+				if((leakage_lpf > CHARGSERV_LEAKAGE_AMPE_TO_ADC) && (_OFF == _APP_CHARGSERV_is_leakage_fault_set())) //lpf를 거친 zct adc값이 1790을 초과하면
 				{
 					_LIB_LOGGING_printf("#### CHARGSERV : leakage_fault_set  time: %ld #### \r\n",_LIB_USERDLEAY_gettick());
-					_APP_CHARGSERV_leakage_fault_set(leakage_lpf);
+					_APP_CHARGSERV_leakage_fault_set(leakage_lpf); //누설전류 오류 설정
 				}
 #endif
 			}

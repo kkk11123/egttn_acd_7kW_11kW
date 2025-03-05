@@ -3916,13 +3916,13 @@ uint8_t _APP_CHARGSERV_print_state()
 
 void _APP_CHARGSERV_device_stop(uint8_t mode)
 {
-	if(mode == 1)
+	if(mode == 1) //MC 릴레이만 OFF
 	{
 		_MW_CP_mc_relay_off_fast();
 		_MW_CP_mc_relay_ctl(_OFF);
 		_MW_CP_set_pwm_duty(100);
 	}
-	else
+	else //CP 릴레이 OFF 후 MC 릴레이 OFF
 	{
 		_MW_CP_cp_relay_ctl(_OFF);
 		_MW_CP_mc_relay_ctl(_OFF);
@@ -4420,6 +4420,7 @@ void charger_over_temperature_under_voltage_fault()
 		{
 			AC_LV_ERR = 0; //비활성화
 			_LIB_USERDELAY_stop(&gTimeout_ac_uv_set_fault);
+			//_LIB_LOGGING_printf("AC_LV_ERR clear (Voltage > 180V)\r\n");
 		}
 	}
 	else if((Ready == state) && (under_voltage_step > 0)) //준비 상태이고 저전압 step이 0 초과이면
@@ -4526,7 +4527,7 @@ void _APP_CHARGSERV_leakage_fault_set(uint16_t value)
 		_LIB_LOGGING_printf("#### CHARGSERV : leakage_Fault detected  : %d #### \r\n",value);
 #endif
 #else
-		_APP_CHARGSERV_device_stop(1);
+		_APP_CHARGSERV_device_stop(1); //MC 릴레이 OFF
 
 		if(3 == Charger.leakage_instop_step)
 		{
@@ -4536,7 +4537,7 @@ void _APP_CHARGSERV_leakage_fault_set(uint16_t value)
 			_LIB_USERDELAY_stop(&gTimout_Leakage_Relapse);
 			Charger.leakage_instop_step = 0;
 
-			_APP_CHARGSERV_fault_set();
+			_APP_CHARGSERV_fault_set(); //CP 전압이 DC 12V라면 reset
 			charger_fault_status.LEAKAGE_ERR = _ON;
 		}
 		else

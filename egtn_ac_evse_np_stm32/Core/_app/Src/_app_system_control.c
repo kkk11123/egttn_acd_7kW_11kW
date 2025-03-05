@@ -58,11 +58,13 @@ static uint16_t wCRCTable[] = {
 0X8201, 0X42C0, 0X4380, 0X8341, 0X4100, 0X81C1, 0X8081, 0X4040 };
 #endif
 
+//USART2 데이터 송신 함수 -> RFID
 void config_comPut(uint8_t *data, uint8_t cnt)
 {
 	_MW_UART_tx02(data, cnt);
 }
 
+//CRC 16 계산함수
 uint16_t config_crc16(uint8_t *nData, uint8_t length)
 {
     uint8_t nTemp;
@@ -77,6 +79,7 @@ uint16_t config_crc16(uint8_t *nData, uint8_t length)
     return wCRCWord;
 }
 
+//유효 프레임 탐색 함수
 void _APP_SYSTEMCTL_framesearch()
 {
 	uint8_t uch = 0xff, ucl = 0xff, bh, bl;
@@ -91,6 +94,7 @@ void _APP_SYSTEMCTL_framesearch()
 
 	mclen =  _LIB_U8QUEUE_comLen(&config_queue);
 
+	//frame을 찾았거나 데이터 길이가 8 byte 미만일 때
 	if((config_app.found_frame == 1) || (mclen < 4))
 	{
 		return;
@@ -99,8 +103,10 @@ void _APP_SYSTEMCTL_framesearch()
 	//backup pointer
 	bsave_pointer = config_queue.action_pointer;
 
+	//RFID 승인원 참고
 	//CMD check
 	temp_cmd = _LIB_U8QUEUE_get_byte(&config_queue);//UI_COMM_mb_get_byte_rtu(); // CMD
+	//cmd가 쓰기 동작일 때
 	if(temp_cmd == CONFIG_WRITE_COMMAND)
 	{
 		//FUNC check
@@ -109,6 +115,7 @@ void _APP_SYSTEMCTL_framesearch()
 		temp_length = _LIB_U8QUEUE_get_byte(&config_queue);
 		callen = 5 + temp_length;
 	}
+	//cmd가 읽기 동작일 때
 	else if(temp_cmd == CONFIG_READ_COMMAND)
 	{
 		//FUNC check
@@ -127,7 +134,7 @@ void _APP_SYSTEMCTL_framesearch()
 		return;
 	}
 
-	for (i = 0; i < callen - 2; i++)
+	for (i = 0; i < callen - 2; i++) //crc 데이터 전까지
 	{
 		if(temp_cmd == CONFIG_WRITE_COMMAND)
 		{
@@ -150,6 +157,7 @@ void _APP_SYSTEMCTL_framesearch()
 	ucl = crc_data;
 	uch = crc_data >> 8;
 
+	//crc 데이터와 계산된 데이터가 동일한지 확인 -> 동일 시 : 옳은 데이터
 	if(((bh == uch) && (bl == ucl)))
 	{
 		//_LIB_LOGGING_printf("DM modbus search frame ok\r\n");
@@ -173,37 +181,38 @@ void _APP_SYSTEMCTL_req(uint8_t cmd, uint8_t func, uint8_t len, uint8_t *data)
 	config_app.tx_cnt = 0; //cnt init
 
 
-	if(set_cmd == CONFIG_WRITE_COMMAND)
+	if(set_cmd == CONFIG_WRITE_COMMAND) //쓰기 명령일 때
 	{
 		config_app.tx_buf[config_app.tx_cnt++] = set_cmd;
 		config_app.tx_buf[config_app.tx_cnt++] = set_func;
 		config_app.tx_buf[config_app.tx_cnt++] = 'O';
 		config_app.tx_buf[config_app.tx_cnt++] = 'K';
 	}
-	else if(set_cmd == CONFIG_READ_COMMAND)
+	else if(set_cmd == CONFIG_READ_COMMAND) //읽기 명령일 때
 	{
 		config_app.tx_buf[config_app.tx_cnt++] = set_cmd;
 		config_app.tx_buf[config_app.tx_cnt++] = set_func;
 		config_app.tx_buf[config_app.tx_cnt++] = set_len;
 
-		for(i=0;i<set_len;i++)
+		for(i=0;i<set_len;i++) //data
 		{
 			config_app.tx_buf[config_app.tx_cnt++] = data[i];
 		}
 
 		crc_data = config_crc16(&config_app.tx_buf[0], (config_app.tx_cnt));
-
+		//crc
 		config_app.tx_buf[config_app.tx_cnt++] = crc_data;
 		config_app.tx_buf[config_app.tx_cnt++] = crc_data >> 8;
 	}
 
-	config_comPut(config_app.tx_buf, config_app.tx_cnt);
+	config_comPut(config_app.tx_buf, config_app.tx_cnt); //송신
 }
 void _APP_SYSTEMCTL_push_ringbuffer(uint8_t comdt)
 {
 	_LIB_U8QUEUE_push_ring(&config_queue, comdt);
 }
 
+//EEPROM에 카드번호 저장 및 삭제 함수
 uint8_t config_write_common_command(uint8_t func,uint8_t* temp_data,uint8_t len)
 {
 	uint8_t ret_value = _TRUE;
@@ -223,7 +232,7 @@ uint8_t config_write_common_command(uint8_t func,uint8_t* temp_data,uint8_t len)
 				{
 					if(true == ee24_read(MEM_ADDR_CARDNUM_INDEX_LSB(i), rxtemp, 1, 100))
 					{
-						if(0xFF == rxtemp[0])
+						if(0xFF == rxtemp[0]) //EEPROM 메모리 주소를 읽었는데 데이터가 비어있으면
 						{
 							txtemp[0] = 0x00;
 							txtemp[1] = 0x00;
@@ -232,7 +241,7 @@ uint8_t config_write_common_command(uint8_t func,uint8_t* temp_data,uint8_t len)
 							txtemp[4] = 0x00;
 							txtemp[5] = 0x00;
 							txtemp[6] = 0x00;
-							txtemp[7] = (i+1);
+							txtemp[7] = (i+1); //인덱스
 							txtemp[8] = temp_data[0];
 							txtemp[9] = temp_data[1];
 							txtemp[10] = temp_data[2];
@@ -242,7 +251,7 @@ uint8_t config_write_common_command(uint8_t func,uint8_t* temp_data,uint8_t len)
 							txtemp[14] = temp_data[6];
 							txtemp[15] = temp_data[7];
 
-							ee24_write(MEM_ADDR_CARDNUM_INDEX_MSB(i), txtemp, 16, 100);
+							ee24_write(MEM_ADDR_CARDNUM_INDEX_MSB(i), txtemp, 16, 100); //rfid card num EEPROM에 저장
 
 							config_app.usecardnum[i][0] = txtemp[8];
 							config_app.usecardnum[i][1] = txtemp[9];
@@ -270,7 +279,7 @@ uint8_t config_write_common_command(uint8_t func,uint8_t* temp_data,uint8_t len)
 				}
 			}
 		break;
-		case CONFIG_FUNC_DELETE_CARDNUM :
+		case CONFIG_FUNC_DELETE_CARDNUM : //카드 번호 삭제
 			if(len == 8)
 			{
 				for(i = 0; i<MAX_CARDNUM_MEMORY ; i++)
@@ -279,13 +288,13 @@ uint8_t config_write_common_command(uint8_t func,uint8_t* temp_data,uint8_t len)
 					{
 						for(j = 0; j<8;j++)
 						{
-							if(temp_data[j] != rxtemp[8+j])
+							if(temp_data[j] != rxtemp[8+j]) //카드 번호가 다를경우
 							{
 								break;
 							}
 						}
 
-						if(8 == j)
+						if(8 == j) //초기화
 						{
 							txtemp[0] = 0xFF;
 							txtemp[1] = 0xFF;
@@ -304,7 +313,7 @@ uint8_t config_write_common_command(uint8_t func,uint8_t* temp_data,uint8_t len)
 							txtemp[14] = 0xFF;
 							txtemp[15] = 0xFF;
 
-							ee24_write(MEM_ADDR_CARDNUM_INDEX_MSB(i), txtemp, 16, 100);
+							ee24_write(MEM_ADDR_CARDNUM_INDEX_MSB(i), txtemp, 16, 100); //EEPROM에 쓰기
 
 							break;
 						}
@@ -430,6 +439,7 @@ void config_main_processing()
 	uch = _LIB_U8QUEUE_get_byte(&config_queue);
 }
 
+//온도 75도 이상 시 오류 플래그 설정 함수
 void check_temp_loop()
 {
 	int16_t temp_value = 0;
@@ -461,6 +471,8 @@ void check_temp_loop()
 #else
 			over_temp_flag = _TRUE;
 			_APP_CHARGSERV_over_temperature_fault_set();
+			printf("temperature fault set\r\n");
+			printf("temperature over > 75\r\n");
 #endif
 		}
 		else if((temp_value < NORMAL_TEMP_THRESHOLD) && (over_temp_flag == _TRUE))
@@ -479,6 +491,8 @@ void check_temp_loop()
 #else
 			over_temp_flag = _FALSE;
 			_APP_CHARGSERV_over_temperature_fault_reset();
+			printf("temperature fault reset\r\n");
+			printf("temperature over < 75\r\n");
 #endif
 		}
 	}
@@ -486,7 +500,7 @@ void check_temp_loop()
 
 void _APP_SYSTEMCTL_located_in_timer()
 {
-	if(config_app.found_frame)
+	if(config_app.found_frame) //유효 프레임이 있을 때마다 main_processing 실행
 	{
 		config_main_processing();
 		config_app.found_frame = 0;
@@ -660,8 +674,6 @@ void _APP_SYSTEMCTL_startup()
 #elif((_CERTIFICATION_MODE_)==_CERTIFICATION_TYPE_FLUG_)
 	_LIB_LOGGING_printf("CERTIFICATION : TYPE_FLUG \r\n");
 #endif
-
-
 
 
 	_LIB_USERDELAY_set(&gDelay_systemctl_comm_periodic_loop_time,5);

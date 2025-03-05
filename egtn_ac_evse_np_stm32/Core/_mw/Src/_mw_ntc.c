@@ -207,6 +207,7 @@ const uint16_t Temp_array[] =
 };
 #endif
 
+//온도값 계산 함수
 int _MW_NTC_cal_ntc(uint16_t i_temp)
 {
 	int j, k;
@@ -233,6 +234,7 @@ int _MW_NTC_cal_ntc(uint16_t i_temp)
 
 	return m_result;
 }
+//NTC 온도센서 ADC 결과값 저장 함수
 uint8_t _MW_NTC_store_value(uint16_t ADC_value)
 {
 	static int index = 0;
@@ -252,6 +254,7 @@ int16_t _MW_NTC_get_temp()
 {
 	return NTC_Temp;
 }
+//NTC ADC 값 -> 전압 변환 -> 온도값 반환
 uint8_t _MW_NTC_cal_temp()
 {
 	static float ADCvalue;
@@ -267,37 +270,41 @@ uint8_t _MW_NTC_cal_temp()
 	ADCvalue = ADCvalue / NTC_TEMP_ADC_LENGTH;
 
 
-	ADC_mV = (ADCvalue / 4096.0F) * 3.35F * 1000.0F;
+	ADC_mV = (ADCvalue / 4096.0F) * 3.35F * 1000.0F; //mv 단위
 
 #if ((__NTC_DEBUG__)==1)
 		//_LIB_LOGGING_printf("ADC : %d \r\n",(int)ADC_mV);
 #endif
 
-	NTC_Temp = _MW_NTC_cal_ntc(ADC_mV);
+	NTC_Temp = _MW_NTC_cal_ntc(ADC_mV); //전압에 맞는 온도값 반환
 
 	return _TRUE;
 }
 
 uint8_t _MW_NTC_loop()
 {
+    uint8_t ret_value = _FALSE;
+    static uint32_t print_counter = 0; // 출력 카운터
 
-	uint8_t ret_value = _FALSE;
+    if (_TRUE == _MW_NTC_store_value(gADCData[ADC_TEMP_INDEX_])) {
+        if (_TRUE == _MW_NTC_cal_temp()) {
 
-	if(_TRUE == _MW_NTC_store_value(gADCData[ADC_TEMP_INDEX_]))
-	{
-		if(_TRUE == _MW_NTC_cal_temp())
-		{
+            print_counter++; // 호출 횟수 증가
 
-#if ((__NTC_DEBUG__)==1)
-				_LIB_LOGGING_printf("temp : %d \r\n",_MW_NTC_get_temp());
+            // 1000번마다 출력
+            if (print_counter >= 100) {
+                print_counter = 0; // 카운터 리셋
 
+#if ((__NTC_DEBUG__) == 1)
+                _LIB_LOGGING_printf("temp : %d \r\n", _MW_NTC_get_temp());
 #endif
-			ret_value = _TRUE;
+            }
 
-		}
-	}
+            ret_value = _TRUE;
+        }
+    }
 
-	return ret_value;
+    return ret_value;
 }
 
 
